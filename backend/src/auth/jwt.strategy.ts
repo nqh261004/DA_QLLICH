@@ -1,9 +1,10 @@
 // src/auth/jwt.strategy.ts
+
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { NguoiDung } from 'src/entities/nguoi_dung.entity';
+import { NguoiDung, VaiTro } from 'src/entities/nguoi_dung.entity';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 
@@ -14,29 +15,34 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private nguoiDungRepository: Repository<NguoiDung>,
     private configService: ConfigService,
   ) {
-    // Đã dùng dấu ! để báo cho TypeScript rằng giá trị là string (khắc phục lỗi cũ)
+    const secret = configService.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error('Cấu hình lỗi: JWT_SECRET không được định nghĩa trong .env');
+    }
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET')!,
+      secretOrKey: secret,
     });
   }
 
-  // HÀM VALIDATE ĐÚNG CÚ PHÁP
-  async validate(payload: { id: string; email: string; vai_tro: string }) {
-    // Lấy thông tin người dùng từ DB để xác nhận tồn tại (Bảo mật)
-    const nguoiDung = await this.nguoiDungRepository.findOneBy({ id: payload.id });
+  async validate(payload: { sub: string; email: string; vai_tro: VaiTro }) {
+    console.log('--- Bắt đầu xác thực Token ---');
+    console.log('Payload nhận được:', payload);
+
+    const nguoiDung = await this.nguoiDungRepository.findOne({
+      where: { id: payload.sub },
+      select: ['id', 'email', 'ho_ten', 'vai_tro', 'trang_thai_hoat_dong'],
+    });
+
+    console.log('Người dùng tìm thấy từ DB:', nguoiDung);
+    console.log('--- Kết thúc xác thực Token ---');
 
     if (!nguoiDung) {
-      // Nếu không tìm thấy, từ chối xác thực (Gây lỗi 401)
       throw new UnauthorizedException('Token không hợp lệ.');
     }
-    
-    // Trả về các thuộc tính cần thiết cho req.user
-    return { 
-        id: nguoiDung.id, 
-        email: nguoiDung.email, 
-        vai_tro: nguoiDung.vai_tro,
-    };
+
+    return nguoiDung;
   }
-} // Dấu đóng ngoặc nhọn cuối cùng
+}

@@ -9,11 +9,6 @@ import { JwtAuthGuard } from './jwt/jwt.guard'; // Thêm vào
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('dang-ky')
-  dangKy(@Body() dangKyDto: DangKyDto) {
-    return this.authService.dangKy(dangKyDto);
-  }
-
   @Post('dang-nhap')
   dangNhap(@Body() dangNhapDto: DangNhapDto) {
     return this.authService.dangNhap(dangNhapDto);

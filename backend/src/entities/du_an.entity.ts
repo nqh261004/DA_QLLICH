@@ -29,7 +29,6 @@ export class DuAn {
   @Column({ length: 150 })
   ten_du_an: string;
 
-    // Bổ sung: Mô tả dự án (rất cần thiết)
   @Column('text', { nullable: true })
   mo_ta: string;
 

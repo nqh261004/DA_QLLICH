@@ -28,7 +28,7 @@ export class NguoiDung {
   email: string;
 
   @Column()
-  mat_khau: string;
+  mat_khau?: string;
 
   @Column({
     type: 'enum',
