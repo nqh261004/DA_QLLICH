@@ -1,4 +1,3 @@
-// src/nguoi_dung/nguoi_dung.module.ts
 import { Module } from '@nestjs/common';
 import { NguoiDungService } from './nguoi_dung.service';
 import { NguoiDungController } from './nguoi_dung.controller';

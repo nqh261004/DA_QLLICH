@@ -1,12 +1,4 @@
-// src/entities/phong_ban.entity.ts
-import { 
-  Entity, 
-  PrimaryGeneratedColumn, 
-  Column, 
-  OneToMany, 
-  CreateDateColumn, 
-  UpdateDateColumn 
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn} from 'typeorm';
 import { NguoiDung } from './nguoi_dung.entity';
 import { DuAn } from './du_an.entity';
 
@@ -25,11 +17,10 @@ export class PhongBan {
   ngay_cap_nhat: Date;
 
   // --- CÁC MỐI QUAN HỆ ---
-  // Một phòng ban có nhiều thành viên (NguoiDung)
+
   @OneToMany(() => NguoiDung, (nguoiDung) => nguoiDung.phong_ban)
   thanh_vien: NguoiDung[];
 
-  // Một phòng ban có nhiều dự án (DuAn)
   @OneToMany(() => DuAn, (duAn) => duAn.phong_ban)
   du_an: DuAn[];
 }

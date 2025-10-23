@@ -3,7 +3,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } fro
 import { CongViecService } from './cong_viec.service';
 import { TaoCongViecDto } from './dto/tao_cong_viec.dto';
 import { CapNhatCongViecDto } from './dto/cap_nhat_cong_viec.dto';
-import { CapNhatTrangThaiDto } from './dto/cap_nhat_trang_thai.dto'; // IMPORT DTO MỚI
+import { CapNhatTrangThaiDto } from './dto/cap_nhat_trang_thai.dto';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.guard';
 
 @UseGuards(JwtAuthGuard)
@@ -34,7 +34,7 @@ export class CongViecController {
   updateStatus(
     @Req() req: any, 
     @Param('id') id: string, 
-    @Body() capNhatTrangThaiDto: CapNhatTrangThaiDto // DTO CHỈ CÓ STATUS
+    @Body() capNhatTrangThaiDto: CapNhatTrangThaiDto 
   ) {
     const idNguoiDung = req.user.id;
     // Gọi hàm chuyên biệt

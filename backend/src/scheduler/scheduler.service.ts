@@ -1,4 +1,3 @@
-// src/scheduler/scheduler.service.ts
 import { InjectQueue } from '@nestjs/bull';
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -7,8 +6,8 @@ import { CongViecService } from 'src/cong_viec/cong_viec.service';
 import { CongViec } from 'src/entities/cong_viec.entity';
 import { addDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { DuAnService } from 'src/du_an/du_an.service'; // Thêm import
-import { NguoiDungService } from 'src/nguoi_dung/nguoi_dung.service'; // Thêm import
+import { DuAnService } from 'src/du_an/du_an.service'; 
+import { NguoiDungService } from 'src/nguoi_dung/nguoi_dung.service'; 
 
 @Injectable()
 export class SchedulerService {

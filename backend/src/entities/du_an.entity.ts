@@ -1,13 +1,4 @@
-// src/entities/du_an.entity.ts
-import { 
-  Entity, 
-  PrimaryGeneratedColumn, 
-  Column, 
-  ManyToOne, 
-  OneToMany,
-  CreateDateColumn,
-  UpdateDateColumn
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn} from 'typeorm';
 import { PhongBan } from './phong_ban.entity';
 import { CongViec } from './cong_viec.entity';
 import { NguoiDung } from './nguoi_dung.entity';
@@ -31,7 +22,6 @@ export class DuAn {
   @Column('text', { nullable: true })
   mo_ta: string;
 
-  // Bổ sung: Cột Trạng thái
   @Column({
     type: 'enum',
     enum: TrangThaiDuAn,
@@ -45,16 +35,14 @@ export class DuAn {
   @UpdateDateColumn()
   ngay_cap_nhat: Date;
 
-    // BỔ SUNG: NGƯỜI QUẢN LÝ (MANAGER) ĐÃ TẠO RA DỰ ÁN
-  @ManyToOne(() => NguoiDung, { onDelete: 'SET NULL' }) 
-  nguoi_quan_ly: NguoiDung; // Dòng này là nguyên nhân của lỗi trước đó
-
   // --- CÁC MỐI QUAN HỆ ---
-  // Nhiều dự án thuộc về một phòng ban
+
+  @ManyToOne(() => NguoiDung, { onDelete: 'SET NULL' }) 
+  nguoi_quan_ly: NguoiDung; 
+
   @ManyToOne(() => PhongBan, (phongBan) => phongBan.du_an)
   phong_ban: PhongBan;
 
-  // Một dự án có nhiều công việc
   @OneToMany(() => CongViec, (congViec) => congViec.du_an)
   cong_viec: CongViec[];
 }

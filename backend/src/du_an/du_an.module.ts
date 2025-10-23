@@ -1,4 +1,3 @@
-// src/du_an/du_an.module.ts
 import { Module } from '@nestjs/common';
 import { DuAnService } from './du_an.service';
 import { DuAnController } from './du_an.controller';

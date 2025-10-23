@@ -1,4 +1,3 @@
-// src/scheduler/scheduler.module.ts
 import { BullModule } from '@nestjs/bull';
 import { Module } from '@nestjs/common';
 import { MailerModule } from 'src/mailer/mailer.module';

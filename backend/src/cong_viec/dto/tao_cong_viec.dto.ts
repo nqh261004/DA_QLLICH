@@ -1,4 +1,3 @@
-// src/cong_viec/dto/tao_cong_viec.dto.ts
 import { IsNotEmpty, IsString, IsUUID, IsNumber, IsOptional, IsDateString, Min, Max } from 'class-validator';
 
 export class TaoCongViecDto {

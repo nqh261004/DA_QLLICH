@@ -29,15 +29,15 @@ export class DuAnService {
     });
 
     if (!nguoiTao) {
-        throw new NotFoundException('Nguoi dung tao du an khong ton tai.');
+        throw new NotFoundException('Người tạo không tồn tại.');
     }
 
     if (nguoiTao.vai_tro !== VaiTro.QUAN_LY) {
-      throw new ForbiddenException('Chi Quan ly moi duoc phep tao Du an.'); 
+      throw new ForbiddenException('Chỉ Quản lý mới được phép tạo Dự án.'); 
     }
 
     if (!nguoiTao.phong_ban) {
-      throw new ForbiddenException('Quan ly chua duoc gan vao Phong ban nao.');
+      throw new ForbiddenException('Quản lý phải thuộc một Phòng ban để tạo Dự án.');
     }
 
     const duAnMoi = this.duAnRepository.create({
@@ -57,13 +57,11 @@ export class DuAnService {
 
     const idPhongBan = nguoiDung?.phongBanId;
 
-    // Nếu không tìm thấy người dùng HOẶC ID khóa ngoại bị null, trả về mảng rỗng.
     if (!idPhongBan) {
       return [];
     }
 
     return this.duAnRepository.find({
-      // Lọc theo ID phòng ban (Dùng quan hệ để lọc)
       where: { phong_ban: { id: idPhongBan } }, 
       relations: ['nguoi_quan_ly', 'phong_ban'], 
     });
@@ -77,7 +75,7 @@ export class DuAnService {
     });
 
     if (!duAn) {
-      throw new NotFoundException('Du an khong ton tai');
+      throw new NotFoundException('Dự án không tồn tại.');
     }
     
     const nguoiDung = await this.nguoiDungRepository.findOne({
@@ -86,16 +84,17 @@ export class DuAnService {
     });
     
     if (!nguoiDung) {
-        throw new NotFoundException('Nguoi dung khong ton tai.');
+        throw new NotFoundException('Người dùng không tồn tại.');
     }
 
     if (!nguoiDung.phong_ban || nguoiDung.phong_ban.id !== duAn.phong_ban.id) {
-        throw new ForbiddenException('Ban khong co quyen truy cap du an nay.');
+        throw new ForbiddenException('Bạn không có quyền truy cập Dự án của phòng ban khác.');
     }
 
     return duAn;
   }
 
+  /** 4. CẬP NHẬT DỰ ÁN */
 async capNhatDuAn(idNguoiDung: string, idDuAn: string, capNhatDuAnDto: CapNhatDuAnDto): Promise<DuAn> {
     const nguoiDung = await this.nguoiDungRepository.findOne({
         where: { id: idNguoiDung },
@@ -120,14 +119,13 @@ async capNhatDuAn(idNguoiDung: string, idDuAn: string, capNhatDuAnDto: CapNhatDu
     const trangThaiHienTai = duAn.trang_thai;
     const trangThaiMoi = capNhatDuAnDto.trang_thai;
 
-    // Logic Khóa Dự án khi đã ở trạng thái cuối cùng
     if (trangThaiHienTai === TrangThaiDuAn.HOAN_THANH || trangThaiHienTai === TrangThaiDuAn.HUY) {
         if (trangThaiMoi !== undefined) {
-             throw new ForbiddenException(`Du an da o trang thai ${trangThaiHienTai} va khong the thay doi trang thai.`);
+             throw new ForbiddenException(`Dự án đang ở trạng thái ${trangThaiHienTai} nên không thể thay đổi trạng thái.`);
         }
     }
 
-    // Logic Task-based Integrity
+    // --- KIỂM TRA TRƯỚC KHI CHUYỂN SANG HOÀN THÀNH ---
     const trangThaiHoanThanh = TrangThaiDuAn.HOAN_THANH;
     if (trangThaiMoi && trangThaiMoi === trangThaiHoanThanh) {
         const congViecChuaHoanThanh = duAn.cong_viec.filter(
@@ -136,12 +134,11 @@ async capNhatDuAn(idNguoiDung: string, idDuAn: string, capNhatDuAnDto: CapNhatDu
 
         if (congViecChuaHoanThanh.length > 0) {
             throw new ForbiddenException(
-                `Khong the chuyen sang trang thai HOAN THÀNH. Còn ${congViecChuaHoanThanh.length} công việc chưa được PHE DUYET cuoi cung.`
+                `Không thể chuyển trạng thái thành HOÀN THÀNH. Còn ${congViecChuaHoanThanh.length} công việc chưa được PHÊ DUYỆT.`
             );
         }
     }
 
-    // --- LOGIC CASCADING KHI CHUYỂN SANG HUY & GỬI EMAIL ---
     if (trangThaiMoi && trangThaiMoi === TrangThaiDuAn.HUY) {
         const activeTasks = duAn.cong_viec.filter(
             cv => cv.trang_thai !== TrangThaiCongViec.PHE_DUYET && cv.trang_thai !== TrangThaiCongViec.BI_HUY
@@ -156,7 +153,6 @@ async capNhatDuAn(idNguoiDung: string, idDuAn: string, capNhatDuAnDto: CapNhatDu
             await this.congViecRepository.save(tasksToUpdate);
         }
 
-        // Gửi email cho tất cả người thực hiện công việc
         const uniqueRecipients = new Set(duAn.cong_viec.map(cv => cv.nguoi_thuc_hien?.email));
         for (const email of uniqueRecipients) {
             if (email) {
@@ -185,11 +181,11 @@ async capNhatDuAn(idNguoiDung: string, idDuAn: string, capNhatDuAnDto: CapNhatDu
     });
 
     if (!nguoiDung) {
-        throw new NotFoundException('Nguoi dung khong ton tai.');
+        throw new NotFoundException('Người dùng không tồn tại.');
     }
     
     if (nguoiDung.vai_tro !== VaiTro.QUAN_LY) {
-        throw new ForbiddenException('Ban khong co quyen xoa Du an. Chi Quan ly moi duoc phep.');
+        throw new ForbiddenException('Bạn không có quyền xóa Dự án. Chỉ Quản lý mới được phép.');
     }
 
     const duAn = await this.duAnRepository.findOne({
@@ -198,11 +194,11 @@ async capNhatDuAn(idNguoiDung: string, idDuAn: string, capNhatDuAnDto: CapNhatDu
     });
 
     if (!duAn) {
-        throw new NotFoundException('Du an khong ton tai');
+        throw new NotFoundException('Dự án không tồn tại.');
     }
 
     if (!nguoiDung.phong_ban || duAn.phong_ban.id !== nguoiDung.phong_ban.id) {
-        throw new ForbiddenException('Ban khong co quyen xoa Du an cua phong ban khac.');
+        throw new ForbiddenException('Bạn không có quyền xóa Dự án của phòng ban khác.');
     }
 
     const uniqueRecipients = new Set(duAn.cong_viec.map(cv => cv.nguoi_thuc_hien?.email));

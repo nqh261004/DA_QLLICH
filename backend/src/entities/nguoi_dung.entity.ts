@@ -1,13 +1,4 @@
-// src/entities/nguoi_dung.entity.ts
-import { 
-  Entity, 
-  PrimaryGeneratedColumn, 
-  Column, 
-  OneToMany, 
-  ManyToOne,
-  CreateDateColumn, 
-  UpdateDateColumn  
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne,CreateDateColumn, UpdateDateColumn} from 'typeorm';
 import { PhongBan } from './phong_ban.entity';
 import { CongViec } from './cong_viec.entity';
 
@@ -49,11 +40,11 @@ export class NguoiDung {
   @UpdateDateColumn()
   ngay_cap_nhat: Date;
 
-    // BỔ SUNG: KHAI BÁO ID KHÓA NGOẠI
+  // --- CÁC MỐI QUAN HỆ ---
+
   @Column({ type: 'uuid', nullable: true })
   phongBanId: string;
 
-  // --- CÁC MỐI QUAN HỆ ---
   @ManyToOne(() => PhongBan, (phongBan) => phongBan.thanh_vien)
   phong_ban: PhongBan;
 

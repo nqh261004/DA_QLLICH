@@ -1,10 +1,8 @@
-// src/nguoi_dung/nguoi_dung.controller.ts
 import { Controller, Get, Post, Body, Patch, Param, UseGuards, Req, Delete } from '@nestjs/common';
 import { NguoiDungService } from './nguoi_dung.service';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.guard';
 import { TaoNguoiDungDto } from './dto/tao_nguoi_dung.dto';
 import { CapNhatNguoiDungDto } from './dto/cap_nhat_nguoi_dung.dto';
-import { VaiTro } from 'src/entities/nguoi_dung.entity';
 
 @UseGuards(JwtAuthGuard)
 @Controller('nguoi-dung')

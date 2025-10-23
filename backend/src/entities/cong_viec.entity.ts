@@ -41,12 +41,12 @@ export class CongViec {
   @Column({ type: 'timestamp', nullable: true })
   han_chot: Date;
 
-  // --- CÁC MỐI QUAN HỆ VÀ ID KHÓA NGOẠI ---
+  // --- CÁC MỐI QUAN HỆ ---
   
   @ManyToOne(() => DuAn, (duAn) => duAn.cong_viec, { onDelete: 'CASCADE' })
   du_an: DuAn;
   @Column({ type: 'uuid', nullable: false })
-  duAnId: string; // Khóa ngoại ID
+  duAnId: string;
 
   @ManyToOne(() => NguoiDung, (nguoiDung) => nguoiDung.cong_viec, { onDelete: 'SET NULL' })
   nguoi_thuc_hien: NguoiDung;
