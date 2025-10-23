@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Thông báo Thay đổi Trạng thái Tài khoản</title>
+</head>
+<body>
+    <h1>Chào {{ho_ten}},</h1>
+    <p>Đây là thông báo từ Hệ thống Quản lý Lịch biểu:</p>
+    
+    <p>Tài khoản của bạn đã được cập nhật trạng thái thành: <strong>{{trang_thai_moi}}</strong>.</p>
+    
+    {{#if is_locked}}
+        <p><strong>Lý do:</strong> Tài khoản này tạm thời bị vô hiệu hóa bởi Quản lý. Bạn không thể đăng nhập cho đến khi được kích hoạt lại.</p>
+    {{else}}
+        <p>Tài khoản của bạn đã được kích hoạt lại và bạn có thể đăng nhập ngay lập tức để tiếp tục công việc.</p>
+    {{/if}}
+    
+    <p>Trân trọng,</p>
+    <p>Đội ngũ Hệ thống Quản lý Lịch biểu</p>
+</body>
+</html>

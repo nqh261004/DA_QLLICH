@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nhắc nhở Công Việc hằng ngày</title>
+</head>
+<body>
+    <h1>Chào {{ho_ten}},</h1>
+    <p>Bạn có một số công việc sau:</p>
+    <ul>
+        {{#each tasks}}
+            <li>
+                <strong>Dự án:</strong> {{ten_du_an}}<br>
+                <strong>Tiêu đề:</strong> {{tieu_de}}<br>
+                <strong>Hạn chót:</strong> {{han_chot}}
+            </li>
+        {{/each}}
+    </ul>
+    <p>Trân trọng,</p>
+    <p>Đội ngũ Hệ thống Quản lý Lịch biểu</p>
+</body>
+</html>

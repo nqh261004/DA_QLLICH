@@ -1,5 +1,5 @@
 // src/nguoi_dung/nguoi_dung.service.ts
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DeleteResult } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -7,6 +7,9 @@ import { NguoiDung, VaiTro } from 'src/entities/nguoi_dung.entity';
 import { PhongBan } from 'src/entities/phong_ban.entity'; 
 import { TaoNguoiDungDto } from './dto/tao_nguoi_dung.dto';
 import { CapNhatNguoiDungDto } from './dto/cap_nhat_nguoi_dung.dto';
+import { InjectQueue } from '@nestjs/bull';
+import type { Queue } from 'bull';
+import { format } from 'date-fns';
 
 @Injectable()
 export class NguoiDungService {
@@ -15,6 +18,7 @@ export class NguoiDungService {
     private nguoiDungRepository: Repository<NguoiDung>,
     @InjectRepository(PhongBan)
     private phongBanRepository: Repository<PhongBan>,
+    @InjectQueue('task_reminder') private taskReminderQueue: Queue,
   ) {}
 
   // Hàm 1: Lấy thông tin cá nhân (Profile)
@@ -53,12 +57,32 @@ export class NguoiDungService {
       ho_ten: taoNguoiDungDto.ho_ten,
       email: taoNguoiDungDto.email,
       mat_khau: mat_khau_hash,
-      vai_tro: taoNguoiDungDto.vai_tro || VaiTro.NHAN_VIEN, 
-      phongBanId: quanLy.phongBanId, 
+      vai_tro: taoNguoiDungDto.vai_tro || VaiTro.NHAN_VIEN,
+      phongBanId: quanLy.phongBanId,
     } as unknown as NguoiDung);
 
     const result = await this.nguoiDungRepository.save(nhanVienMoi);
-    delete result.mat_khau;
+
+    // --- LOGIC MỚI: GỬI JOB EMAIL ---
+    try {
+        await this.taskReminderQueue.add('send_welcome_email', {
+          to: result.email,
+          subject: 'Chào mừng bạn đến với hệ thống!',
+          template: 'welcome',
+          context: {
+            ho_ten: result.ho_ten,
+            email: result.email,
+            mat_khau: taoNguoiDungDto.mat_khau,
+            vai_tro: result.vai_tro,
+          },
+        });
+    } catch (error) {
+        console.error('Lỗi khi thêm job vào queue:', error);
+        // Sau đó bạn có thể chọn throw error hoặc tiếp tục
+    }
+    // --- KẾT THÚC LOGIC MỚI ---
+
+    delete (result as NguoiDung).mat_khau;
     return result;
   }
 
@@ -82,17 +106,17 @@ export class NguoiDungService {
       throw new NotFoundException('Tai khoan can cap nhat khong ton tai.');
     }
     
-    // 2. LOGIC KIỂM TRA QUYỀN: CẤM NẾU KHÔNG PHẢI QUẢN LÝ VÀ KHÔNG PHẢI TỰ SỬA
     if (!isManager && !isSelfUpdate) {
         throw new ForbiddenException('Ban chi co the cap nhat ho so cua chinh minh.');
     }
 
+    const trangThaiHoatDongCu = nguoiDungCanSua.trang_thai_hoat_dong;
+    const isPasswordBeingChanged = !!capNhatNguoiDungDto.mat_khau;
+
     if (!isManager) { 
-        // 1. CHẶN TRẠNG THÁI HOẠT ĐỘNG
         if (capNhatNguoiDungDto.trang_thai_hoat_dong !== undefined) {
              throw new ForbiddenException('Nhan vien khong duoc phep thay doi trang thai hoat dong.');
         }
-        // 2. CHẶN CHUYỂN PHÒNG BAN
         if (capNhatNguoiDungDto.phongBanId !== undefined) {
             throw new ForbiddenException('Nhan vien khong duoc phep thay doi phong ban.');
         }
@@ -102,11 +126,16 @@ export class NguoiDungService {
     // if (capNhatNguoiDungDto.email || (capNhatNguoiDungDto as any).vai_tro) {
     //     throw new ForbiddenException('Khong the thay doi Email hoac Vai tro nguoi dung.');
     // }
-    
+
+
+
     // 4. KIỂM TRA VÀ GÁN MẬT KHẨU MỚI (Nếu có)
     if (capNhatNguoiDungDto.mat_khau) {
-        const salt = await bcrypt.genSalt();
-        capNhatNguoiDungDto.mat_khau = await bcrypt.hash(capNhatNguoiDungDto.mat_khau, salt);
+      if (capNhatNguoiDungDto.mat_khau.length < 6) { 
+        throw new BadRequestException('Mật khẩu phải chứa ít nhất 6 ký tự.');
+      }
+      const salt = await bcrypt.genSalt();
+      capNhatNguoiDungDto.mat_khau = await bcrypt.hash(capNhatNguoiDungDto.mat_khau, salt);
     }
     
     // 5. CẬP NHẬT VÀ LƯU
@@ -118,6 +147,32 @@ export class NguoiDungService {
     }
 
     const result = await this.nguoiDungRepository.save(nguoiDungCanSua);
+
+    if (capNhatNguoiDungDto.trang_thai_hoat_dong !== undefined && trangThaiHoatDongCu !== capNhatNguoiDungDto.trang_thai_hoat_dong) {
+        await this.taskReminderQueue.add('send_account_status_email', {
+            to: result.email,
+            subject: 'Thông báo: Trạng thái tài khoản của bạn đã thay đổi',
+            template: 'account-status',
+            context: {
+                ho_ten: result.ho_ten,
+                trang_thai_moi: capNhatNguoiDungDto.trang_thai_hoat_dong ? 'Đã kích hoạt' : 'Đã vô hiệu hóa',
+                is_locked: !capNhatNguoiDungDto.trang_thai_hoat_dong,
+            },
+        });
+    }
+
+    if (isPasswordBeingChanged) {
+      await this.taskReminderQueue.add('send_password_changed_email', {
+          to: result.email,
+          subject: 'THÔNG BÁO BẢO MẬT: Mật khẩu tài khoản đã thay đổi',
+          template: 'password-changed',
+          context: {
+              ho_ten: result.ho_ten,
+              thoi_gian: format(new Date(), 'HH:mm:ss dd/MM/yyyy'),
+          },
+      });
+    }
+
     delete result.mat_khau;
     return result;
   }

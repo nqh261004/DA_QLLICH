@@ -6,6 +6,8 @@ import { NguoiDung, VaiTro } from 'src/entities/nguoi_dung.entity';
 import { TaoDuAnDto } from './dto/tao_du_an.dto';
 import { CapNhatDuAnDto } from './dto/cap_nhat_du_an.dto';
 import { CongViec, TrangThaiCongViec } from 'src/entities/cong_viec.entity';
+import { InjectQueue } from '@nestjs/bull';
+import type { Queue } from 'bull';
 
 @Injectable()
 export class DuAnService {
@@ -16,6 +18,7 @@ export class DuAnService {
     private nguoiDungRepository: Repository<NguoiDung>,
     @InjectRepository(CongViec)
     private congViecRepository: Repository<CongViec>,
+    @InjectQueue('task_reminder') private taskReminderQueue: Queue,
   ) {}
 
   /** 1. TẠO DỰ ÁN */
@@ -93,19 +96,19 @@ export class DuAnService {
     return duAn;
   }
 
- async capNhatDuAn(idNguoiDung: string, idDuAn: string, capNhatDuAnDto: CapNhatDuAnDto): Promise<DuAn> {
+async capNhatDuAn(idNguoiDung: string, idDuAn: string, capNhatDuAnDto: CapNhatDuAnDto): Promise<DuAn> {
     const nguoiDung = await this.nguoiDungRepository.findOne({
         where: { id: idNguoiDung },
         relations: ['phong_ban'],
     });
-    
-    if (!nguoiDung || nguoiDung.vai_tro !== VaiTro.QUAN_LY) { 
+
+    if (!nguoiDung || nguoiDung.vai_tro !== VaiTro.QUAN_LY) {
         throw new ForbiddenException('Bạn không có quyền cập nhật Dự án. Chỉ Quản lý mới được phép.');
     }
 
     const duAn = await this.duAnRepository.findOne({
-      where: { id: idDuAn },
-      relations: ['phong_ban', 'cong_viec'], // Load công việc con
+        where: { id: idDuAn },
+        relations: ['phong_ban', 'cong_viec', 'cong_viec.nguoi_thuc_hien'],
     });
 
     if (!duAn) { throw new NotFoundException('Dự án không tồn tại'); }
@@ -117,15 +120,15 @@ export class DuAnService {
     const trangThaiHienTai = duAn.trang_thai;
     const trangThaiMoi = capNhatDuAnDto.trang_thai;
 
+    // Logic Khóa Dự án khi đã ở trạng thái cuối cùng
     if (trangThaiHienTai === TrangThaiDuAn.HOAN_THANH || trangThaiHienTai === TrangThaiDuAn.HUY) {
         if (trangThaiMoi !== undefined) {
              throw new ForbiddenException(`Du an da o trang thai ${trangThaiHienTai} va khong the thay doi trang thai.`);
         }
     }
 
-    const trangThaiHoanThanh = TrangThaiDuAn.HOAN_THANH; 
-    const trangThaiHuy = TrangThaiDuAn.HUY;
-    
+    // Logic Task-based Integrity
+    const trangThaiHoanThanh = TrangThaiDuAn.HOAN_THANH;
     if (trangThaiMoi && trangThaiMoi === trangThaiHoanThanh) {
         const congViecChuaHoanThanh = duAn.cong_viec.filter(
             cv => cv.trang_thai !== TrangThaiCongViec.PHE_DUYET
@@ -137,10 +140,11 @@ export class DuAnService {
             );
         }
     }
-    
-    if (trangThaiMoi && trangThaiMoi === trangThaiHuy) {
+
+    // --- LOGIC CASCADING KHI CHUYỂN SANG HUY & GỬI EMAIL ---
+    if (trangThaiMoi && trangThaiMoi === TrangThaiDuAn.HUY) {
         const activeTasks = duAn.cong_viec.filter(
-             cv => cv.trang_thai !== TrangThaiCongViec.PHE_DUYET && cv.trang_thai !== TrangThaiCongViec.BI_HUY
+            cv => cv.trang_thai !== TrangThaiCongViec.PHE_DUYET && cv.trang_thai !== TrangThaiCongViec.BI_HUY
         );
 
         const tasksToUpdate = activeTasks.map(task => {
@@ -151,11 +155,27 @@ export class DuAnService {
         if (tasksToUpdate.length > 0) {
             await this.congViecRepository.save(tasksToUpdate);
         }
+
+        // Gửi email cho tất cả người thực hiện công việc
+        const uniqueRecipients = new Set(duAn.cong_viec.map(cv => cv.nguoi_thuc_hien?.email));
+        for (const email of uniqueRecipients) {
+            if (email) {
+                await this.taskReminderQueue.add('send_project_cancellation_email', {
+                  to: email,
+                  subject: 'Dự án đã huỷ',
+                  template: 'project-cancellation',
+                  context: {
+                    ho_ten: duAn.cong_viec.find(cv => cv.nguoi_thuc_hien?.email === email)?.nguoi_thuc_hien.ho_ten,
+                    ten_du_an: duAn.ten_du_an,
+                  },
+                });
+            }
+        }
     }
 
     Object.assign(duAn, capNhatDuAnDto);
     return this.duAnRepository.save(duAn);
-  }
+}
   
   /** 5. XÓA DỰ ÁN */
   async xoaDuAn(idNguoiDung: string, idDuAn: string): Promise<DeleteResult> {
@@ -174,7 +194,7 @@ export class DuAnService {
 
     const duAn = await this.duAnRepository.findOne({
         where: { id: idDuAn },
-        relations: ['phong_ban'],
+        relations: ['phong_ban', 'cong_viec', 'cong_viec.nguoi_thuc_hien'],
     });
 
     if (!duAn) {
@@ -183,6 +203,21 @@ export class DuAnService {
 
     if (!nguoiDung.phong_ban || duAn.phong_ban.id !== nguoiDung.phong_ban.id) {
         throw new ForbiddenException('Ban khong co quyen xoa Du an cua phong ban khac.');
+    }
+
+    const uniqueRecipients = new Set(duAn.cong_viec.map(cv => cv.nguoi_thuc_hien?.email));
+    for (const email of uniqueRecipients) {
+      if (email) {
+        await this.taskReminderQueue.add('send_project_cancellation_email', {
+          to: email,
+          subject: `Dự án đã bị xóa`,
+          template: 'project-cancellation',
+          context: {
+            ho_ten: duAn.cong_viec.find(cv => cv.nguoi_thuc_hien?.email === email)?.nguoi_thuc_hien.ho_ten,
+            ten_du_an: duAn.ten_du_an,
+          },
+        });
+      }
     }
 
     const ketQua = await this.duAnRepository.delete(idDuAn);

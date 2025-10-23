@@ -15,7 +15,6 @@ import { NguoiDung } from './nguoi_dung.entity';
 export enum TrangThaiDuAn {
   SAP_BAT_DAU = 'sap_bat_dau',
   DANG_TIEN_HANH = 'dang_tien_hanh',
-  TAM_DUNG = 'tam_dung',
   HOAN_THANH = 'hoan_thanh',
   HUY = 'huy',
 }

@@ -6,17 +6,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { NguoiDung } from 'src/entities/nguoi_dung.entity';
 import { PhongBan } from 'src/entities/phong_ban.entity';
 import { AuthModule } from 'src/auth/auth.module';
-import { APP_GUARD } from '@nestjs/core';
+import { BullModule } from '@nestjs/bull';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([NguoiDung, PhongBan]),
     AuthModule,
+    BullModule.registerQueue({
+      name: 'task_reminder',
+    }),
   ],
   controllers: [NguoiDungController],
-  providers: [
-    NguoiDungService,
-  ],
-  exports: [NguoiDungService],
+  providers: [NguoiDungService],
+  exports: [NguoiDungService], 
 })
 export class NguoiDungModule {}
