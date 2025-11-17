@@ -34,25 +34,27 @@ const isSelfProfile = computed(() => currentProfileId.value === authStore.userId
 // 1. Tải thông tin cá nhân (Hàm chính)
 const fetchProfile = async () => {
     error.value = '';
-    const idToFetch = route.params.id || authStore.userId; 
     
-    if (!idToFetch) {
+    // 1. Xác định URL API dựa trên tên Route
+    let url: string;
+    if (route.name === 'profile') {
+        // ✅ FIX LỖI: Khi là Self-profile (Nhân viên hoặc QL), gọi endpoint /profile
+        url = '/nguoi-dung/profile'; 
+    } else if (route.name === 'admin-user-detail') {
+        // Khi Admin xem hồ sơ người khác, gọi endpoint /:id
+        url = `/nguoi-dung/${route.params.id}`; 
+    } else {
         error.value = 'Lỗi: Không tìm thấy ID người dùng.';
         return;
     }
-
+    
     try {
-        const response = await apiClient.get(`/nguoi-dung/${idToFetch}`); 
+        const response = await apiClient.get(url); 
         user.value = response.data;
         nameForm.value.ho_ten = response.data.ho_ten;
     } catch (err: any) {
-        error.value = err.response?.data?.message || 'Không thể tải hồ sơ. Lỗi phân quyền.';
-        
-        if (route.name === 'admin-user-detail') { 
-             router.push({ name: 'admin-users' }); 
-        } else { 
-             router.push({ name: 'dashboard' }); 
-        }
+        error.value = err.response?.data?.message || 'Không thể tải hồ sơ người dùng.';
+        // Logic chuyển hướng nếu lỗi (đã được đề cập ở bước trước)
     }
 };
 
