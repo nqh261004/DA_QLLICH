@@ -1,4 +1,3 @@
-// src/du-an/dto/tao-du-an.dto.ts
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 export class TaoDuAnDto {

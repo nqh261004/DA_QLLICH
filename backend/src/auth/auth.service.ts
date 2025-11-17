@@ -21,11 +21,11 @@ export class AuthService {
     });
 
     if (!nguoiDung || !nguoiDung.mat_khau || !(await bcrypt.compare(dangNhapDto.mat_khau, nguoiDung.mat_khau))) {
-      throw new UnauthorizedException('Sai thong tin dang nhap');
+      throw new UnauthorizedException('Sai thông tin đăng nhập');
     }
 
     if (nguoiDung.trang_thai_hoat_dong === false) {
-      throw new ForbiddenException('Tai khoan cua ban da bi vo hieu hoa. Vui long lien he quan ly.');
+      throw new ForbiddenException('Tài khoản của bạn đã bị vô hiệu hóa.');
     }
 
     const payload = {

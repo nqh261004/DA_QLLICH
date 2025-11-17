@@ -1,4 +1,3 @@
-// src/auth/auth.module.ts (CODE ĐÃ SỬA FINAL)
 import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
@@ -28,7 +27,7 @@ import { JwtStrategy } from './jwt.strategy';
     AuthService,
     JwtStrategy,
   ],
-  exports: [ // ĐÃ SỬA: Xuất toàn bộ để các module khác có thể sử dụng
+  exports: [ 
     AuthService,
     JwtModule,
     JwtStrategy,

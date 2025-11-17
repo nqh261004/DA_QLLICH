@@ -1,4 +1,3 @@
-// src/auth/dto/dang-nhap.dto.ts
 import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
 
 export class DangNhapDto {

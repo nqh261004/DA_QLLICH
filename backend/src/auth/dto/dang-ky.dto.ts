@@ -1,4 +1,3 @@
-// src/auth/dto/dang-ky.dto.ts
 import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 
 export class DangKyDto {

@@ -1,4 +1,3 @@
-// src/cong_viec/cong_viec.module.ts
 import { Module } from '@nestjs/common';
 import { CongViecService } from './cong_viec.service'; 
 import { CongViecController } from './cong_viec.controller'; 

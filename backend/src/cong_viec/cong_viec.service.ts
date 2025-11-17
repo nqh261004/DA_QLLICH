@@ -44,7 +44,6 @@ export class CongViecService {
     });
     const nhanVien = await this.nguoiDungRepository.findOneBy({ id: id_nguoi_thuc_hien });
 
-    // SỬA LỖI: Bổ sung null check
     if (!duAn) { throw new NotFoundException('Du an khong ton tai.'); }
     if (!nhanVien) { throw new NotFoundException('Nguoi thuc hien khong ton tai.'); }
 
@@ -69,7 +68,6 @@ export class CongViecService {
 
     const result = await this.congViecRepository.save(congViecMoi);
 
-    // BỔ SUNG LOGIC GỬI EMAIL
     if (nhanVien.email) {
       await this.taskReminderQueue.add('send_new_task_email', {
         to: nhanVien.email,
@@ -151,13 +149,10 @@ export class CongViecService {
     throw new ForbiddenException('Ban khong co quyen truy cap cong viec nay.');
   }
 
-  /**
-   * HÀM NỘI BỘ: Kiểm tra quy tắc chuyển trạng thái (REVIEW WORKFLOW)
-   */
   private kiemTraChuyenTrangThaiHopLe(
     nguoiDung: NguoiDung,
     congViecHienTai: CongViec,
-    trangThaiMoi: TrangThaiCongViec, // Chỉ chấp nhận trạng thái mới
+    trangThaiMoi: TrangThaiCongViec,
   ): void {
     const vaiTro = nguoiDung.vai_tro;
     const trangThaiCu = congViecHienTai.trang_thai;
@@ -170,7 +165,6 @@ export class CongViecService {
       return; 
     }
 
-    // NHÂN VIÊN: Chỉ được phép chuyển đổi theo luồng đã định
     if (vaiTro === VaiTro.NHAN_VIEN) {
       if (congViecHienTai.nguoiThucHienId !== nguoiDung.id) {
         throw new ForbiddenException('Ban khong phai nguoi thuc hien cong viec nay.');
@@ -187,9 +181,6 @@ export class CongViecService {
     }
   }
 
-  /**
-   * 4A. HÀM MỚI: CHUYÊN BIỆT CẬP NHẬT TRẠNG THÁI (CHỈ CHO NHÂN VIÊN)
-   */
   async capNhatTrangThaiNhanVien(idNguoiDung: string, idCongViec: string, trangThaiMoi: TrangThaiCongViec): Promise<CongViec> {
     
     const nguoiDung = await this.nguoiDungRepository.findOneBy({ id: idNguoiDung });
@@ -198,10 +189,8 @@ export class CongViecService {
     const congViec = await this.congViecRepository.findOneBy({ id: idCongViec });
     if (!congViec) { throw new NotFoundException('Cong viec khong ton tai.'); }
 
-    // Chỉ kiểm tra luồng trạng thái
     this.kiemTraChuyenTrangThaiHopLe(nguoiDung, congViec, trangThaiMoi); 
-    
-    // Cập nhật trạng thái
+
     congViec.trang_thai = trangThaiMoi;
 
     return this.congViecRepository.save(congViec);
@@ -238,7 +227,6 @@ export class CongViecService {
     const result = await this.congViecRepository.save(congViec);
 
     console.log(`Đang kiểm tra: Trạng thái CŨ: ${trangThaiCu}, Trạng thái MỚI: ${trangThaiMoi}`);
-    // --- LOGIC MỚI: GỬI EMAIL THÔNG BÁO PHÊ DUYỆT ---
     if (trangThaiCu === TrangThaiCongViec.CHO_DUYET && trangThaiMoi === TrangThaiCongViec.PHE_DUYET) {
         if (congViec.nguoi_thuc_hien && congViec.nguoi_thuc_hien.email) {
             await this.taskReminderQueue.add('send_task_approval_email', {
@@ -254,7 +242,6 @@ export class CongViecService {
         }
     }
 
-    // --- LOGIC MỚI: GỬI EMAIL THÔNG BÁO CẦN SỬA ---
     if (trangThaiCu === TrangThaiCongViec.CHO_DUYET && trangThaiMoi === TrangThaiCongViec.CAN_SUA) {
         if (congViec.nguoi_thuc_hien && congViec.nguoi_thuc_hien.email) {
             await this.taskReminderQueue.add('send_task_rejection_email', {
@@ -274,7 +261,7 @@ export class CongViecService {
   }
 
   /**
-   * 5. XÓA CÔNG VIỆC (CHỈ QUẢN LÝ)
+   * 5. XÓA CÔNG VIỆC 
    */
   async remove(idNguoiDung: string, idCongViec: string): Promise<DeleteResult> {
     const nguoiDung = await this.nguoiDungRepository.findOne({
@@ -292,8 +279,6 @@ export class CongViecService {
     });
     
     if (!congViec) { throw new NotFoundException('Cong viec khong ton tai.'); }
-    
-    // --- LOGIC GỬI EMAIL THÔNG BÁO HỦY CÔNG VIỆC ---
     if (congViec.nguoi_thuc_hien && congViec.nguoi_thuc_hien.email) {
         await this.taskReminderQueue.add('send_task_cancellation_email', {
             to: congViec.nguoi_thuc_hien.email,
@@ -310,10 +295,7 @@ export class CongViecService {
     const ketQua = await this.congViecRepository.delete(idCongViec);
     return ketQua;
   }
-
-  /**
-   * HÀM MỚI: TÌM CÔNG VIỆC SẮP ĐẾN HẠN
-   */
+  
   async findTasksDueSoon(date: Date): Promise<CongViec[]> {
       const today = new Date();
       const tomorrow = addDays(startOfDay(today), 1);
@@ -333,9 +315,6 @@ export class CongViecService {
       });
   }
 
-  /**
-   * HÀM MỚI: TÌM CÔNG VIỆC QUÁ HẠN
-   */
   async findOverdueTasks(): Promise<CongViec[]> {
       const now = new Date();
       return this.congViecRepository.find({

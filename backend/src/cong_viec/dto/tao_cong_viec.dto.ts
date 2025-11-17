@@ -19,12 +19,10 @@ export class TaoCongViecDto {
   @IsOptional()
   han_chot?: Date;
 
-  // ID DỰ ÁN (Bắt buộc)
   @IsUUID('4', { message: 'ID dự án không hợp lệ.' })
   @IsNotEmpty({ message: 'Cần chỉ định ID dự án.' })
   id_du_an: string;
 
-  // ID NGƯỜI THỰC HIỆN (Bắt buộc)
   @IsUUID('4', { message: 'ID người thực hiện không hợp lệ.' })
   @IsNotEmpty({ message: 'Cần chỉ định người thực hiện.' })
   id_nguoi_thuc_hien: string;

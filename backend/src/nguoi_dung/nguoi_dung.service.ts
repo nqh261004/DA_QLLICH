@@ -25,7 +25,7 @@ export class NguoiDungService {
     const user = await this.nguoiDungRepository.findOne({
       where: { id },
       relations: ['phong_ban'],
-      select: ['id', 'ho_ten', 'email', 'vai_tro', 'phong_ban', 'ngay_tao'],
+      select: ['id', 'ho_ten', 'email', 'vai_tro', 'trang_thai_hoat_dong', 'phong_ban', 'ngay_tao'],
     });
     if (!user) {
       throw new NotFoundException('Người dùng không tồn tại.');
@@ -33,7 +33,7 @@ export class NguoiDungService {
     return user;
   }
 
-  /** 2 TẠO TÀI KHOẢN NHÂN VIÊN (CHỈ QUẢN LÝ MỚI ĐƯỢC TẠO) **/
+  /** 2 TẠO TÀI KHOẢN NHÂN VIÊN **/
   async taoTaiKhoanNhanVien(idNguoiTao: string, taoNguoiDungDto: TaoNguoiDungDto): Promise<NguoiDung> {
     const quanLy = await this.nguoiDungRepository.findOne({
       where: { id: idNguoiTao },
@@ -61,8 +61,6 @@ export class NguoiDungService {
     } as unknown as NguoiDung);
 
     const result = await this.nguoiDungRepository.save(nhanVienMoi);
-
-    // --- LOGIC MỚI: GỬI JOB EMAIL ---
     try {
         await this.taskReminderQueue.add('send_welcome_email', {
           to: result.email,
@@ -169,18 +167,14 @@ export class NguoiDungService {
       where: { id: idNguoiDung },
       relations: ['phong_ban'],
     });
-
-    // 1. Kiểm tra quyền (CHỈ QUẢN LÝ)
     if (nguoiDangNhap?.vai_tro !== VaiTro.QUAN_LY) {
       throw new ForbiddenException('Chi Quản lý mới có quyền xem danh sách người dùng trong phòng ban.');
     }
 
-    // 2. Kiểm tra Phòng ban
     if (!nguoiDangNhap.phongBanId) {
-      return []; // Nếu Quản lý chưa có phòng ban, trả về mảng rỗng
+      return []; 
     }
 
-    // 3. Lấy tất cả người dùng có cùng phongBanId
     return this.nguoiDungRepository.find({
       where: { phongBanId: nguoiDangNhap.phongBanId },
       select: ['id', 'ho_ten', 'email', 'vai_tro', 'trang_thai_hoat_dong'],
