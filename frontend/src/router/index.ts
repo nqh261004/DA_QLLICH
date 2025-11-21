@@ -12,6 +12,11 @@ import AdminProjects from '@/views/AdminProjects.vue';
 import TaskDetail from '@/views/TaskDetail.vue'; 
 import AdminCreateTask from '@/views/AdminCreateTask.vue';
 import AdminCreateUser from '@/views/AdminCreateUser.vue';
+import AdminCreateProject from '@/views/AdminCreateProject.vue';
+import AdminEditProject from '@/views/AdminEditProject.vue';
+import AdminTasksList from '@/views/AdminTasksList.vue';
+import AdminEditTask from '@/views/AdminEditTask.vue';
+import AdminProjectDetail from '@/views/AdminProjectDetail.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -54,11 +59,47 @@ const router = createRouter({
       component: AdminProjects,
       meta: { requiresAuth: true, role: 'quan_ly' },
     },
-    // Route Tạo Công việc (QL)
+
+    {
+      path: '/admin/projects/:id/details', 
+      name: 'admin-project-detail',
+      component: AdminProjectDetail, // SỬ DỤNG COMPONENT ĐÃ TẠO
+      meta: { requiresAuth: true, role: 'quan_ly' },
+      props: true, // Cho phép truyền ID qua props nếu cần
+    },
+
+    {
+      path: '/admin/projects/:id/edit',
+      name: 'admin-edit-project',
+      component: AdminEditProject,
+      meta: { requiresAuth: true, role: 'quan_ly' },
+    },
+
+    {
+      path: '/admin/projects/new',
+      name: 'admin-create-project',
+      component: AdminCreateProject,
+      meta: { requiresAuth: true, role: 'quan_ly' },
+    },
+
     {
       path: '/admin/tasks/new',
       name: 'admin-new-task',
-      component: AdminCreateTask, // Dùng AdminUsers tạm thời, sẽ tạo View mới sau
+      component: AdminCreateTask, 
+      meta: { requiresAuth: true, role: 'quan_ly' },
+    },
+
+    {
+      path: '/admin/tasks', 
+      name: 'admin-tasks-list', 
+      component: AdminTasksList,
+      meta: { requiresAuth: true, role: 'quan_ly' },
+    },
+
+    {
+      path: '/tasks/:id/edit',
+      name: 'admin-edit-task',
+      component: AdminEditTask,
       meta: { requiresAuth: true, role: 'quan_ly' },
     },
   ],

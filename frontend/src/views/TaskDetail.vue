@@ -6,6 +6,7 @@ import { getTaskDetail, updateTaskStatus } from '@/api/taskService';
 import { useAuthStore } from '@/stores/auth';
 // ĐẢM BẢO CÁC ICONS ĐÃ ĐƯỢC IMPORT
 import { CheckCircleIcon, WrenchScrewdriverIcon, AcademicCapIcon, ArchiveBoxXMarkIcon } from '@heroicons/vue/24/outline';
+import { useToast } from "vue-toastification";
 
 const route = useRoute();
 const router = useRouter();
@@ -13,6 +14,7 @@ const authStore = useAuthStore();
 const task = ref<any>(null);
 const isLoading = ref(true);
 const error = ref('');
+const toast = useToast();
 
 // ĐỊNH NGHĨA KIỂU DỮ LIỆU CẦN THIẾT
 interface ActionVisibility {
@@ -89,10 +91,23 @@ const handleStatusUpdate = async (newStatus: string) => {
         await fetchTask(); 
 
         alert(`Đã chuyển trạng thái thành công sang ${getStatusDisplay(newStatus).label}`);
+        if (route.query.fromAdmin === 'true') {
+        router.push({ name: 'admin-tasks-list' });
+    }
     } catch (err: any) {
         alert(err.response?.data?.message || 'Lỗi khi cập nhật trạng thái.');
     }
 };
+
+const handleGoBack = () => {
+    if (route.query.fromAdmin === 'true') {
+        // Quay lại trang Quản lý Công việc
+        router.push({ name: 'admin-tasks-list' });
+    } else {
+        // Mặc định, quay lại trang Công việc Của Tôi
+        router.push({ name: 'tasks-list' });
+    }
+}
 
 onMounted(fetchTask);
 </script>
@@ -103,14 +118,18 @@ onMounted(fetchTask);
         <div v-else-if="isLoading || !task" class="text-center py-10">Đang tải chi tiết công việc...</div>
         
         <div v-else class="space-y-6">
+
+            
             <h1 class="text-3xl font-bold text-gray-800 border-b pb-3 mb-4">
                 {{ task.tieu_de }}
             </h1>
 
+
+
             <div class="bg-white p-6 rounded-lg shadow-xl border-l-4 border-indigo-500">
                 <h3 class="text-xl font-semibold text-indigo-600 mb-4">Hành động & Tiến độ</h3>
                 <p v-if="isActionVisible.isFinal" class="text-lg text-gray-500">
-                    Công việc này đã **Hoàn thành** hoặc **Bị hủy**. Không thể thay đổi.
+
                 </p>
 
                 <div v-else class="flex flex-wrap gap-4">
@@ -171,11 +190,19 @@ onMounted(fetchTask);
                 <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Mô tả Công việc</h3>
                 <p class="text-gray-700 whitespace-pre-wrap">{{ task.mo_ta }}</p>
             </div>
-            
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Thông tin Dự án</h3>
-                <p class="text-gray-700 mt-2">Dự án: <strong>{{ task.du_an?.ten_du_an || 'Không rõ' }}</strong></p>
-                <p class="text-gray-700">Giao việc bởi: <strong>{{ task.nguoi_giao_viec?.ho_ten || 'Quản lý' }}</strong></p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div v-if="authStore.isManager">
+                    <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Người thực hiện</h3>
+                    <p class="text-gray-700 mt-2">Họ tên: <strong>{{ task.nguoi_thuc_hien?.ho_ten || 'N/A' }}</strong></p>
+                    <p class="text-gray-700">Email: <strong>{{ task.nguoi_thuc_hien?.email || 'Chưa rõ email' }}</strong></p>
+                </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-semibold text-gray-800 border-b pb-2">Thông tin Dự án</h3>
+                    <p class="text-gray-700 mt-2">Dự án: <strong>{{ task.du_an?.ten_du_an || 'Không rõ' }}</strong></p>
+                    <p class="text-gray-700">Giao việc bởi: <strong>{{ task.nguoi_giao_viec?.ho_ten || 'Quản lý' }}</strong></p>
+                </div>
             </div>
         </div>
     </MainLayout>

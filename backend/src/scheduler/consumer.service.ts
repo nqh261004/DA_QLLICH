@@ -65,7 +65,7 @@ export class TaskConsumer {
 
   @Process('send_project_cancellation_email')
   async handleSendProjectCancellationEmail(job: Job) {
-    this.logger.debug('Bắt đầu gửi mail xoá công việc');
+    this.logger.debug('Bắt đầu gửi mail xoá dự án');
     const { to, subject, template, context } = job.data;
     try {
       await this.mailerService.sendTaskReminder(to,subject,template, context);

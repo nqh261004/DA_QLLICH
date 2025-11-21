@@ -44,3 +44,13 @@ export const updateTaskContent = async (id: string, data: any) => {
         throw error;
     }
 };
+
+export const deleteTask = async (id: string) => {
+    try {
+        // API: DELETE /cong-viec/:id
+        const response = await apiClient.delete(`${TASK_URL}/${id}`);
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};

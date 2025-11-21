@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsString, MaxLength, IsDateString} from 'class-validator';
 
 export class TaoDuAnDto {
   @IsString({ message: 'Tên dự án phải là chuỗi.' })
@@ -9,4 +9,12 @@ export class TaoDuAnDto {
   @IsString({ message: 'Mô tả phải là chuỗi.' })
   @IsNotEmpty({ message: 'Mô tả không được để trống.' })
   mo_ta: string;
+
+  @IsDateString()
+  @IsNotEmpty()
+  ngay_bat_dau: Date;
+
+  @IsDateString()
+  @IsNotEmpty()
+  ngay_ket_thuc_du_kien: Date;
 }

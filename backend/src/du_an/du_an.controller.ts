@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query } from '@nestjs/common';
 import { DuAnService } from './du_an.service';
 import { TaoDuAnDto } from './dto/tao_du_an.dto';
 import { CapNhatDuAnDto } from './dto/cap_nhat_du_an.dto';
@@ -15,10 +15,10 @@ export class DuAnController {
     return this.duAnService.taoDuAn(idNguoiDung, taoDuAnDto);
   }
 
-  @Get()
-  findAll(@Req() req: any) {
+@Get()
+  findAll(@Req() req: any, @Query('trang_thai') trangThai?: string, @Query('page') page: number = 1, @Query('limit') limit: number = 5) {
     const idNguoiDung = req.user.id;
-    return this.duAnService.layTatCaDuAn(idNguoiDung);
+    return this.duAnService.layTatCaDuAn(idNguoiDung, trangThai, page, limit); 
   }
 
   @Get(':id')

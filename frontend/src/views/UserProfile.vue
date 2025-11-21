@@ -103,13 +103,13 @@ const handleUpdateName = async () => {
         
         user.value.ho_ten = response.data.ho_ten;
         authStore.userName = response.data.ho_ten; 
-        toast.success(`Cập nhật tên thành công`);
+        toast.success(`Đổi tên thành công`);
         isEditingNameModalOpen.value = false; 
 
         fetchProfile(); 
 
     } catch (err: any) {
-        error.value = err.response?.data?.message || 'Cập nhật tên thất bại.';
+        error.value = err.response?.data?.message || 'Đổi tên thất bại.';
     }
 };
 
@@ -166,7 +166,7 @@ onMounted(fetchProfile);
                         <div v-if="isSelfProfile" class="mt-6 flex flex-col space-y-3">
                             <button @click="isEditingNameModalOpen = true" 
                                 class="profile-action-button bg-indigo-500 hover:bg-indigo-600">
-                                <PencilSquareIcon class="w-5 h-5 mr-2" /> Chỉnh sửa Tên
+                                <PencilSquareIcon class="w-5 h-5 mr-2" /> Đổi Tên
                             </button>
                             <button @click="isPasswordModalOpen = true" 
                                 class="profile-action-button bg-red-500 hover:bg-red-600">

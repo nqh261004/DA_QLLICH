@@ -55,10 +55,10 @@ const formatRole = (role: string | null) => {
                             <FolderIcon class="w-5 h-5 mr-3" /> Quản lý Dự án
                         </router-link>
 
-                        <router-link to="/admin/tasks/new"
+                        <router-link to="/admin/tasks"
                             class="nav-link"
-                            :class="{'bg-indigo-700': $route.path.startsWith('/admin/tasks/new')}">
-                            <PlusCircleIcon class="w-5 h-5 mr-3" /> Giao việc Mới
+                            :class="{'bg-indigo-700': $route.path.startsWith('/admin/tasks')}">
+                            <ClipboardDocumentListIcon class="w-5 h-5 mr-3" /> Quản lý Công việc
                         </router-link>
                     </div>
                 </template>

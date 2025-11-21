@@ -162,7 +162,7 @@ export class NguoiDungService {
   }
 
   /** 4. LẤY DANH SÁCH NGƯỜI DÙNG TRONG PHÒNG BAN (CHỈ QUẢN LÝ MỚI ĐƯỢC XEM) **/
-  async layTatCaNguoiDung(idNguoiDung: string): Promise<NguoiDung[]> {
+  async layTatCaNguoiDung(idNguoiDung: string, page: number = 1, limit: number = 5): Promise<NguoiDung[]> {
     const nguoiDangNhap = await this.nguoiDungRepository.findOne({
       where: { id: idNguoiDung },
       relations: ['phong_ban'],
@@ -174,6 +174,8 @@ export class NguoiDungService {
     if (!nguoiDangNhap.phongBanId) {
       return []; 
     }
+    const take = limit > 0 ? limit : 5;
+    const skip = (page > 0 ? page - 1 : 0) * take;
 
     return this.nguoiDungRepository.find({
       where: { phongBanId: nguoiDangNhap.phongBanId },
@@ -182,6 +184,8 @@ export class NguoiDungService {
       order: {
         ho_ten: 'ASC',
       },
+      take: take, 
+      skip: skip,
     });
   }
 

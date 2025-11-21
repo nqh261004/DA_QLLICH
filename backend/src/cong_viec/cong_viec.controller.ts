@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Query } from '@nestjs/common';
 import { CongViecService } from './cong_viec.service';
 import { TaoCongViecDto } from './dto/tao_cong_viec.dto';
 import { CapNhatCongViecDto } from './dto/cap_nhat_cong_viec.dto';
@@ -16,10 +16,18 @@ export class CongViecController {
     return this.congViecService.taoCongViec(idNguoiTao, taoCongViecDto);
   }
   
-  @Get()
-  findAll(@Req() req: any) {
+@Get()
+  async findAll(@Req() req: any, @Query('trang_thai') trangThai: string, @Query('page') page: number = 1, @Query('limit') limit: number = 5) {
     const idNguoiDung = req.user.id;
-    return this.congViecService.findAll(idNguoiDung); 
+    const vaiTro = req.user.vai_tro;
+
+    return this.congViecService.findAll(
+      idNguoiDung,
+      vaiTro,
+      trangThai,
+      page,
+      limit
+    ); 
   }
   
   @Get(':id')

@@ -3,9 +3,13 @@ import MainLayout from '@/components/MainLayout.vue';
 import { ref, onMounted } from 'vue';
 import apiClient from '@/api/client';
 import { useRouter } from 'vue-router';
-import { PlusCircleIcon } from '@heroicons/vue/24/outline';
+// IMPORT THƯ VIỆN TOAST
+import { useToast } from "vue-toastification"; 
+import { PlusCircleIcon, CalendarIcon, BriefcaseIcon, UserIcon } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
+const toast = useToast(); // KHỞI TẠO TOAST
+
 const projects = ref<any[]>([]);
 const users = ref<any[]>([]);
 const form = ref({
@@ -16,21 +20,26 @@ const form = ref({
     id_du_an: '',
     id_nguoi_thuc_hien: ''
 });
-const error = ref('');
-const successMessage = ref('');
+
+// Thêm lại biến này để ngăn chặn click đúp
+const isSubmitting = ref(false); 
 const isLoading = ref(true);
+const getTodayDate = () => {
+    return new Date().toISOString().split('T')[0];
+};
 
 const fetchData = async () => {
     try {
         const [projectsRes, usersRes] = await Promise.all([
-            apiClient.get('/du-an'), // QL có quyền lấy tất cả dự án
-            apiClient.get('/nguoi-dung') // QL có quyền lấy tất cả người dùng
+            apiClient.get('/du-an'), 
+            apiClient.get('/nguoi-dung') 
         ]);
         
-        projects.value = projectsRes.data;
+        // Chỉ lấy dự án Đang hoạt động
+        projects.value = projectsRes.data.filter((p: any) => p.trang_thai !== 'hoan_thanh' && p.trang_thai !== 'huy');
+        // Chỉ lấy người dùng là Nhân viên đang Hoạt động
         users.value = usersRes.data.filter((u: any) => u.vai_tro === 'nhan_vien' && u.trang_thai_hoat_dong);
 
-        // Thiết lập giá trị mặc định cho dropdown
         if (projects.value.length > 0) {
             form.value.id_du_an = projects.value[0].id;
         }
@@ -39,7 +48,8 @@ const fetchData = async () => {
         }
 
     } catch (err: any) {
-        error.value = 'Lỗi tải dữ liệu. Hãy đảm bảo bạn đã tạo Dự án và Người dùng.';
+        // SỬ DỤNG TOAST CHO LỖI TẢI DỮ LIỆU
+        toast.error('Lỗi tải dữ liệu. Hãy đảm bảo bạn đã tạo Dự án và Người dùng.');
     } finally {
         isLoading.value = false;
     }
@@ -47,34 +57,36 @@ const fetchData = async () => {
 
 // 2. Xử lý logic Giao việc
 const handleSubmit = async () => {
-    error.value = '';
-    successMessage.value = '';
+    isSubmitting.value = true;
     
-    if (!form.value.id_du_an || !form.value.id_nguoi_thuc_hien) {
-        error.value = 'Vui lòng chọn Dự án và Người thực hiện.';
+    // VALIDATION
+    if (!form.value.tieu_de || !form.value.id_du_an || !form.value.id_nguoi_thuc_hien) {
+        toast.error('Vui lòng điền Tiêu đề và chọn Dự án/Người thực hiện.');
+        isSubmitting.value = false;
         return;
     }
 
     try {
         const payload = {
             ...form.value,
-            // Đảm bảo muc_do_uu_tien là số (đã bị Vue ép thành string)
             muc_do_uu_tien: Number(form.value.muc_do_uu_tien) 
         };
 
         await apiClient.post('/cong-viec', payload);
         
-        successMessage.value = 'Công việc đã được giao thành công! Email thông báo đã được gửi.';
-        // Reset form sau khi thành công
-        form.value.tieu_de = '';
-        form.value.mo_ta = '';
-        form.value.han_chot = '';
-        form.value.muc_do_uu_tien = 3;
+        // SỬ DỤNG TOAST THAY CHO successMessage
+        toast.success(`Công việc "${form.value.tieu_de}" đã được giao thành công! Email thông báo đã được gửi.`);
+
+        // CHUYỂN HƯỚNG SANG TRANG DANH SÁCH CÔNG VIỆC
+        router.push({ name: 'admin-tasks-list' }); 
 
     } catch (err: any) {
-        // Lỗi từ Backend (ví dụ: Hạn chót sớm hơn ngày tạo dự án)
-        error.value = err.response?.data?.message || 'Giao việc thất bại. Kiểm tra dữ liệu nhập.';
+        // SỬ DỤNG TOAST CHO LỖI API
+        const errorMessage = err.response?.data?.message || 'Giao việc thất bại. Kiểm tra dữ liệu nhập.';
+        toast.error(errorMessage);
         console.error(err);
+    } finally {
+        isSubmitting.value = false;
     }
 };
 
@@ -87,18 +99,13 @@ onMounted(fetchData);
             <h1 class="text-3xl font-bold text-gray-800">Tạo & Giao việc Mới</h1>
             
             <p v-if="isLoading">Đang tải dữ liệu...</p>
-            <p v-else-if="error" class="text-red-500 p-3 bg-red-100 rounded">{{ error }}</p>
-
+            
             <div v-else class="max-w-3xl bg-white p-8 rounded-lg shadow-xl mx-auto">
                 <h3 class="text-xl font-bold mb-6 border-b pb-2 flex items-center">
                     <PlusCircleIcon class="w-6 h-6 mr-3 text-indigo-600" /> Thông tin Công việc
                 </h3>
 
-                <div v-if="successMessage" class="bg-green-100 text-green-700 p-4 rounded-lg mb-6 font-semibold">
-                    {{ successMessage }}
-                </div>
-                
-                <form @submit.prevent="handleSubmit">
+                <form @submit.prevent="handleSubmit" :class="{'opacity-50': isSubmitting}">
                     
                     <div class="mb-4">
                         <label class="block text-gray-700 text-sm font-bold mb-2">Tiêu đề Công việc</label>
@@ -116,7 +123,9 @@ onMounted(fetchData);
                     
                     <div class="grid grid-cols-2 gap-4 mb-6">
                         <div>
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Chọn Dự án</label>
+                            <label class="block text-gray-700 text-sm font-bold mb-2 flex items-center">
+                                <BriefcaseIcon class="w-4 h-4 mr-1"/> Chọn Dự án
+                            </label>
                             <select v-model="form.id_du_an" required class="form-select">
                                 <option v-for="project in projects" :key="project.id" :value="project.id">
                                     {{ project.ten_du_an }}
@@ -124,7 +133,9 @@ onMounted(fetchData);
                             </select>
                         </div>
                         <div>
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Giao việc cho</label>
+                            <label class="block text-gray-700 text-sm font-bold mb-2 flex items-center">
+                                <UserIcon class="w-4 h-4 mr-1"/> Giao việc cho
+                            </label>
                             <select v-model="form.id_nguoi_thuc_hien" required class="form-select">
                                 <option v-for="user in users" :key="user.id" :value="user.id">
                                     {{ user.ho_ten }} ({{ user.email }})
@@ -135,8 +146,11 @@ onMounted(fetchData);
 
                     <div class="grid grid-cols-2 gap-4 mb-6">
                         <div>
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Hạn chót</label>
-                            <input type="date" v-model="form.han_chot" class="form-input" required>
+                            <label class="block text-gray-700 text-sm font-bold mb-2 flex items-center">
+                                <CalendarIcon class="w-4 h-4 mr-1"/> Hạn chót
+                            </label>
+                            <input type="date" v-model="form.han_chot" class="form-input" required
+                            :min="getTodayDate()">
                         </div>
                         <div>
                             <label class="block text-gray-700 text-sm font-bold mb-2">Mức độ Ưu tiên (1-5)</label>
@@ -145,8 +159,9 @@ onMounted(fetchData);
                     </div>
 
                     <button type="submit" 
+                            :disabled="isSubmitting"
                             class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-150 shadow-md">
-                        Giao Việc
+                        {{ isSubmitting ? 'Đang giao việc...' : 'Giao Việc' }}
                     </button>
                 </form>
             </div>

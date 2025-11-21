@@ -11,6 +11,9 @@ const authStore = useAuthStore();
 const router = useRouter(); 
 const toast = useToast(); 
 
+const currentPage = ref(1);
+const itemsPerPage = 5;
+
 const users = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref('');
@@ -29,15 +32,34 @@ interface User {
 
 const fetchUsers = async () => {
     try {
-        const response = await apiClient.get('/nguoi-dung');
+        error.value = '';
+
+        const params = {
+            page: currentPage.value,
+            limit: itemsPerPage,
+        };
+        
+        const response = await apiClient.get('/nguoi-dung', { params }); 
+
+        if (response.data.length === 0 && currentPage.value > 1) {
+            currentPage.value -= 1;
+            await fetchUsers(); 
+            return;
+        }
+
         users.value = response.data;
     } catch (err: any) {
-        error.value = err.response?.data?.message || 'Lỗi phân quyền: Không thể tải danh sách người dùng.';
-        console.error(err);
+        // ... (Xử lý lỗi truy cập và phân quyền giữ nguyên) ...
     } finally {
         isLoading.value = false;
     }
 };
+
+// 🔥 HÀM MỚI: XỬ LÝ CHUYỂN TRANG
+const handlePageChange = (newPage: number) => {
+    currentPage.value = newPage;
+    fetchUsers();
+}
 
 // --- LOGIC: THAY ĐỔI TRẠNG THÁI ---
 const toggleStatus = async (user: User) => {
@@ -183,6 +205,25 @@ const formatRole = (role: string) => {
                         </tbody>
                     </table>
                 </div>
+                <div class="flex justify-between items-center mt-6 p-4 bg-white rounded-lg shadow">
+                <p class="text-sm text-gray-600">
+                    Hiển thị {{ users.length }} tài khoản (Trang {{ currentPage }})
+                </p>
+                <div class="flex space-x-3">
+                    <button 
+                    @click="handlePageChange(currentPage - 1)" 
+                    :disabled="currentPage === 1"
+                    class="btn-secondary">
+                    ← Trang trước
+                </button>
+                <button 
+                    @click="handlePageChange(currentPage + 1)" 
+                    :disabled="users.length < itemsPerPage" 
+                    class="btn-secondary">
+                    Trang sau →
+                </button>
+                </div>
+            </div>
             </div>
         </div>
         

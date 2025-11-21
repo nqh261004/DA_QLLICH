@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DeleteResult, Between, In, LessThan } from 'typeorm';
 import { TaoCongViecDto } from './dto/tao_cong_viec.dto';
@@ -6,7 +6,7 @@ import { CapNhatCongViecDto } from './dto/cap_nhat_cong_viec.dto';
 import { CongViec, TrangThaiCongViec } from 'src/entities/cong_viec.entity';
 import { NguoiDung, VaiTro } from 'src/entities/nguoi_dung.entity';
 import { DuAn, TrangThaiDuAn } from 'src/entities/du_an.entity';
-import { format, startOfDay, addDays, endOfDay} from 'date-fns';
+import { format, startOfDay, addDays, endOfDay, isBefore, isAfter} from 'date-fns';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 
@@ -51,8 +51,31 @@ export class CongViecService {
       throw new ForbiddenException('Khong the giao viec cho tai khoan khong hoat dong.');
     }
 
-    if (taoCongViecDto.han_chot && new Date(taoCongViecDto.han_chot) < duAn.ngay_tao) {
+    if (taoCongViecDto.han_chot && duAn.ngay_bat_dau && duAn.ngay_ket_thuc_du_kien) {
+        
+        const taskDeadline = new Date(taoCongViecDto.han_chot);
+        const projectStart = new Date(duAn.ngay_bat_dau);
+        const projectEnd = new Date(duAn.ngay_ket_thuc_du_kien);
+
+        const deadlineDateOnly = startOfDay(taskDeadline);
+        const projectStartDateOnly = startOfDay(projectStart);
+        const projectEndDateOnly = startOfDay(projectEnd);
+
+        // 1. Công việc không được có hạn chót trước ngày tạo dự án
+        if (isBefore(deadlineDateOnly, startOfDay(duAn.ngay_tao))) {
         throw new ForbiddenException('Han chot cua cong viec khong the som hon ngay tao du an.');
+        }
+
+        // 2. Công việc không được có hạn chót trước ngày BẮT ĐẦU dự án
+        if (isBefore(deadlineDateOnly, projectStartDateOnly)) {
+            throw new BadRequestException(`Han chot cong viec (${format(taskDeadline, 'dd/MM/yyyy')}) khong duoc truoc ngay bat dau du an (${format(projectStart, 'dd/MM/yyyy')}).`);
+        }
+
+        // 3. Công việc không được có hạn chót sau ngày KẾT THÚC dự án
+        // Sử dụng isAfter() để kiểm tra nghiêm ngặt: KHÔNG ĐƯỢC SAU.
+        if (isAfter(deadlineDateOnly, projectEndDateOnly)) { // 🔥 SỬ DỤNG isAfter ĐỂ SO SÁNH NGÀY
+            throw new BadRequestException(`Han chot cong viec (${format(taskDeadline, 'dd/MM/yyyy')}) khong duoc sau ngay ket thuc du an (${format(projectEnd, 'dd/MM/yyyy')}).`);
+        }
     }
 
 
@@ -86,7 +109,13 @@ export class CongViecService {
   /**
    * 2. XEM TẤT CẢ
    */
-  async findAll(idNguoiDung: string): Promise<CongViec[]> {
+async findAll(
+    idNguoiDung: string,
+    vaiTro: VaiTro,
+    trangThai?: string,
+    page: number = 1, 
+    limit: number = 5 // Giả định Controller gửi số
+): Promise<CongViec[]> {
     const nguoiDung = await this.nguoiDungRepository.findOne({
       where: { id: idNguoiDung },
       relations: ['phong_ban'],
@@ -94,27 +123,38 @@ export class CongViecService {
 
     if (!nguoiDung) { throw new NotFoundException('Nguoi dung khong ton tai.'); }
 
-    let dieuKienTimKiem: any = {};
+    // Dùng TypeORM's find() thay vì QueryBuilder để đơn giản hóa
+    const dieuKienTimKiem: any = {};
 
-    if (nguoiDung.vai_tro === VaiTro.QUAN_LY && nguoiDung.phong_ban) {
-      dieuKienTimKiem = {
-        du_an: {
-          phong_ban: {
-            id: nguoiDung.phong_ban.id,
-          },
+    // 1. PHÂN QUYỀN CƠ SỞ (Lớp bảo vệ)
+    if (vaiTro === VaiTro.QUAN_LY && nguoiDung.phong_ban) {
+      // QL: Lọc Task theo Phòng ban của họ
+      dieuKienTimKiem.du_an = {
+        phong_ban: {
+          id: nguoiDung.phong_ban.id,
         },
       };
     } 
-    else if (nguoiDung.vai_tro === VaiTro.NHAN_VIEN) {
-      dieuKienTimKiem = {
-        nguoi_thuc_hien: {
-          id: idNguoiDung,
-        },
+    else if (vaiTro === VaiTro.NHAN_VIEN) {
+      // NV: Chỉ xem Task được gán cho chính mình
+      dieuKienTimKiem.nguoi_thuc_hien = {
+        id: idNguoiDung,
       };
     } 
     else {
       return [];
     }
+    
+    // 2. BỔ SUNG LỌC THEO TRẠNG THÁI (Lọc cơ sở)
+    if (trangThai && trangThai !== 'TAT_CA') {
+      dieuKienTimKiem.trang_thai = trangThai.toLowerCase();
+    }
+    
+    // ----------------------------------------------------
+    // 🔥 FIX: ÁP DỤNG LOGIC PAGINATION (skip/take) 🔥
+    // ----------------------------------------------------
+    const take = limit > 0 ? limit : 5;
+    const skip = (page > 0 ? page - 1 : 0) * take; 
 
     return this.congViecRepository.find({
       where: dieuKienTimKiem,
@@ -122,6 +162,8 @@ export class CongViecService {
       order: {
         ngay_tao: 'DESC',
       },
+      take: take, // <<< SỬ DỤNG TAKE (LIMIT)
+      skip: skip, // <<< SỬ DỤNG SKIP (OFFSET)
     });
   }
 
@@ -185,48 +227,40 @@ export class CongViecService {
     
     const nguoiDung = await this.nguoiDungRepository.findOneBy({ id: idNguoiDung });
     if (!nguoiDung) { throw new NotFoundException('Nguoi dung khong ton tai.'); }
-    
-    const congViec = await this.congViecRepository.findOneBy({ id: idCongViec });
+
+    const congViec = await this.congViecRepository.findOne({
+        where: { id: idCongViec },
+        relations: ['du_an', 'nguoi_thuc_hien'],
+    });
+
     if (!congViec) { throw new NotFoundException('Cong viec khong ton tai.'); }
+
+    const trangThaiCu = congViec.trang_thai;
 
     this.kiemTraChuyenTrangThaiHopLe(nguoiDung, congViec, trangThaiMoi); 
 
     congViec.trang_thai = trangThaiMoi;
 
-    return this.congViecRepository.save(congViec);
-  }
-
-  /**
-   * 4. CẬP NHẬT CÔNG VIỆC CHUNG (CHỦ YẾU DÙNG CHO QUẢN LÝ SỬA CONTENT)
-   */
-  async update(idNguoiDung: string, idCongViec: string, capNhatCongViecDto: CapNhatCongViecDto): Promise<CongViec> {
-    const { trang_thai: trangThaiMoi, id_du_an, id_nguoi_thuc_hien } = capNhatCongViecDto;
-
-    const nguoiDung = await this.nguoiDungRepository.findOneBy({ id: idNguoiDung });
-    if (!nguoiDung) { throw new NotFoundException('Nguoi dung khong ton tai.'); }
-    
-    const congViec = await this.congViecRepository.findOne({
-      where: { id: idCongViec },
-      relations: ['du_an', 'nguoi_thuc_hien'],
-    });
-    if (!congViec) { throw new NotFoundException('Cong viec khong ton tai.'); }
-    
-    const trangThaiCu = congViec.trang_thai;
-    
-    if (trangThaiMoi) { 
-        this.kiemTraChuyenTrangThaiHopLe(nguoiDung, congViec, trangThaiMoi); 
-    }
-    
-    Object.assign(congViec, capNhatCongViecDto); 
-    
-    if (id_du_an) congViec.duAnId = id_du_an;
-    if (id_nguoi_thuc_hien) congViec.nguoiThucHienId = id_nguoi_thuc_hien;
-
-    if (trangThaiMoi) congViec.trang_thai = trangThaiMoi;
-
     const result = await this.congViecRepository.save(congViec);
 
-    console.log(`Đang kiểm tra: Trạng thái CŨ: ${trangThaiCu}, Trạng thái MỚI: ${trangThaiMoi}`);
+    if (result.du_an.trang_thai === TrangThaiDuAn.SAP_BAT_DAU) {
+        
+        const activeStatuses = [
+            TrangThaiCongViec.DANG_LAM,
+            TrangThaiCongViec.CHO_DUYET,
+            TrangThaiCongViec.CAN_SUA,
+        ];
+        
+        // Nếu trạng thái công việc MỚI là một trạng thái hoạt động
+        if (activeStatuses.includes(trangThaiMoi)) {
+            
+            // Chuyển dự án sang trạng thái ĐANG_TIEN_HANH
+            result.du_an.trang_thai = TrangThaiDuAn.DANG_TIEN_HANH;
+            await this.duAnRepository.save(result.du_an); 
+            console.log(`[CASCADING] Dự án ${result.duAnId} chuyển sang ĐANG_TIEN_HANH do Task ${result.id} bắt đầu.`);
+        }
+    }
+
     if (trangThaiCu === TrangThaiCongViec.CHO_DUYET && trangThaiMoi === TrangThaiCongViec.PHE_DUYET) {
         if (congViec.nguoi_thuc_hien && congViec.nguoi_thuc_hien.email) {
             await this.taskReminderQueue.add('send_task_approval_email', {
@@ -242,6 +276,7 @@ export class CongViecService {
         }
     }
 
+    // LOGIC YÊU CẦU SỬA (CHO_DUYET -> CAN_SUA)
     if (trangThaiCu === TrangThaiCongViec.CHO_DUYET && trangThaiMoi === TrangThaiCongViec.CAN_SUA) {
         if (congViec.nguoi_thuc_hien && congViec.nguoi_thuc_hien.email) {
             await this.taskReminderQueue.add('send_task_rejection_email', {
@@ -250,10 +285,169 @@ export class CongViecService {
               template: 'task-rejection',
               context: {
                 ho_ten: congViec.nguoi_thuc_hien.ho_ten,
-                tieu_de: result.tieu_de,
+                tieu_de: congViec.tieu_de,
                 ten_du_an: congViec.du_an.ten_du_an,
-                mo_ta: result.mo_ta,
+                mo_ta: congViec.mo_ta,
               }
+            });
+        }
+    }
+
+    return this.congViecRepository.save(congViec);
+  }
+
+  /**
+   * 4. CẬP NHẬT CÔNG VIỆC CHUNG (CHỦ YẾU DÙNG CHO QUẢN LÝ SỬA CONTENT)
+   */
+  async update(idNguoiDung: string, idCongViec: string, capNhatCongViecDto: CapNhatCongViecDto): Promise<CongViec> {
+    const { trang_thai: trangThaiMoi, id_du_an, id_nguoi_thuc_hien, han_chot: hanChotMoi } = capNhatCongViecDto;
+
+    const nguoiDung = await this.nguoiDungRepository.findOneBy({ id: idNguoiDung });
+    if (!nguoiDung) { throw new NotFoundException('Nguoi dung khong ton tai.'); }
+    
+    const congViec = await this.congViecRepository.findOne({
+      where: { id: idCongViec },
+      relations: ['du_an', 'nguoi_thuc_hien'],
+    });
+    if (!congViec) { throw new NotFoundException('Cong viec khong ton tai.'); }
+
+    const trangThaiCu = congViec.trang_thai;
+    let duAnHienTai = congViec.du_an; 
+    const nguoiThucHienCuId = congViec.nguoiThucHienId;
+    const isReassigned = id_nguoi_thuc_hien && id_nguoi_thuc_hien !== nguoiThucHienCuId;
+    let trangThaiMoiSauGan = trangThaiMoi;
+
+if (congViec.trang_thai === TrangThaiCongViec.PHE_DUYET || congViec.trang_thai === TrangThaiCongViec.BI_HUY) {
+        if (Object.keys(capNhatCongViecDto).length > 0) { // Nếu DTO không rỗng, chặn sửa
+            throw new ForbiddenException(`Khong the chinh sua cong viec da o trang thai ${congViec.trang_thai}.`);
+        }
+    }
+    
+
+
+
+    // Nếu có ID dự án mới được gửi từ DTO
+    if (id_du_an && id_du_an !== congViec.duAnId) {
+        const duAnMoi = await this.duAnRepository.findOne({
+            where: { id: id_du_an },
+            select: ['id', 'ngay_tao', 'ngay_bat_dau', 'ngay_ket_thuc_du_kien', 'trang_thai'],
+        });
+        if (!duAnMoi) {
+            throw new NotFoundException('Du an moi khong ton tai.');
+        }
+        duAnHienTai = duAnMoi;
+    }
+
+    const currentDeadline = hanChotMoi ? new Date(hanChotMoi) : congViec.han_chot;
+
+    if (currentDeadline && duAnHienTai.ngay_bat_dau && duAnHienTai.ngay_ket_thuc_du_kien) {
+        
+        const projectStart = new Date(duAnHienTai.ngay_bat_dau);
+        const projectEnd = new Date(duAnHienTai.ngay_ket_thuc_du_kien);
+
+        const deadlineDateOnly = startOfDay(currentDeadline);
+        const projectStartDateOnly = startOfDay(projectStart);
+        const projectEndDateOnly = startOfDay(projectEnd);
+        
+        // 1. Kiểm tra hạn chót so với ngày tạo dự án (Logic cũ)
+        if (isBefore(deadlineDateOnly, startOfDay(duAnHienTai.ngay_tao))) {
+            throw new BadRequestException('Han chot cua cong viec khong the som hon ngay tao du an.');
+        }
+
+        // 2. Công việc không được có hạn chót trước ngày BẮT ĐẦU dự án
+        if (isBefore(deadlineDateOnly, projectStartDateOnly)) {
+            throw new BadRequestException(`Han chot cong viec khong duoc truoc ngay bat dau du an.`);
+        }
+
+        // 3. Công việc không được có hạn chót sau ngày KẾT THÚC dự án
+        if (isAfter(deadlineDateOnly, projectEndDateOnly)) { // 🔥 SỬ DỤNG isAfter ĐỂ SO SÁNH NGÀY
+            throw new BadRequestException(`Han chot cong viec khong duoc sau ngay ket thuc du an.`);
+        }
+    }
+    
+    if (trangThaiMoi) { 
+        this.kiemTraChuyenTrangThaiHopLe(nguoiDung, congViec, trangThaiMoi); 
+    }
+    
+    Object.assign(congViec, capNhatCongViecDto); 
+    
+    if (id_du_an) congViec.duAnId = id_du_an;
+    if (id_nguoi_thuc_hien) { 
+        // a) Gán ID mới
+        congViec.nguoiThucHienId = id_nguoi_thuc_hien;
+        congViec.nguoi_thuc_hien = null as any; 
+
+        // 🔥 FIX 2: LOGIC TỰ ĐỘNG THAY ĐỔI TRẠNG THÁI KHI CHUYỂN GIAO
+        if (id_nguoi_thuc_hien !== nguoiThucHienCuId) {
+             const trangThaiCanThayDoi = [
+                TrangThaiCongViec.CHO_DUYET, 
+                TrangThaiCongViec.PHE_DUYET, 
+                TrangThaiCongViec.BI_HUY,
+                TrangThaiCongViec.DANG_LAM, 
+                TrangThaiCongViec.CAN_SUA,
+             ];
+
+             if (trangThaiCanThayDoi.includes(trangThaiCu as TrangThaiCongViec)) {
+                trangThaiMoiSauGan = TrangThaiCongViec.CAN_LAM; 
+             }
+        }
+    }
+
+    if (trangThaiMoiSauGan) congViec.trang_thai = trangThaiMoiSauGan;
+    else if (trangThaiMoi) congViec.trang_thai = trangThaiMoi;
+
+    if (hanChotMoi) {
+        congViec.han_chot = new Date(hanChotMoi); 
+    }
+
+    const result = await this.congViecRepository.save(congViec);
+
+    if (result.du_an.trang_thai === TrangThaiDuAn.SAP_BAT_DAU) {
+        const activeStatuses = [
+            TrangThaiCongViec.DANG_LAM, 
+            TrangThaiCongViec.CHO_DUYET, 
+            TrangThaiCongViec.CAN_SUA
+        ];
+
+        // Nếu Task chuyển sang bất kỳ trạng thái hoạt động nào
+        if (activeStatuses.includes(trangThaiMoi as TrangThaiCongViec)) {
+            result.du_an.trang_thai = TrangThaiDuAn.DANG_TIEN_HANH;
+            await this.duAnRepository.save(result.du_an); // Lưu thay đổi trạng thái Dự án
+            console.log(`[CASCADING] Dự án ${result.duAnId} chuyển sang ĐANG_TIEN_HANH.`);
+        }
+    }
+
+    if (isReassigned) {
+        // Tải thông tin người dùng (Đảm bảo có email và tên)
+        const nguoiCu = await this.nguoiDungRepository.findOneBy({ id: nguoiThucHienCuId });
+        const nguoiMoi = await this.nguoiDungRepository.findOneBy({ id: id_nguoi_thuc_hien });
+
+        // A. Gửi mail cho NGƯỜI CŨ (Task bị gỡ) - TÁI SỬ DỤNG TEMPLATE CANCEL
+        if (nguoiCu && nguoiCu.email) {
+            await this.taskReminderQueue.add('send_task_cancellation_email', { 
+                to: nguoiCu.email,
+                subject: `[THÔNG BÁO] Công việc "${result.tieu_de}" đã được chuyển giao`, 
+                template: 'task-cancellation', 
+                context: {
+                    ho_ten: nguoiCu.ho_ten,
+                    tieu_de: result.tieu_de, // Dùng tieu_de thay vì taskName
+                    ten_du_an: result.du_an.ten_du_an, // Dùng ten_du_an thay vì projectName
+                    reason: `đã được Quản lý chuyển giao cho ${nguoiMoi ? nguoiMoi.ho_ten : 'người khác'}`,
+                },
+            });
+        }
+
+        // B. Gửi mail cho NGƯỜI MỚI (Task được giao) - TÁI SỬ DỤNG TEMPLATE NEW TASK
+        if (nguoiMoi && nguoiMoi.email) {
+            await this.taskReminderQueue.add('send_new_task_email', { 
+                to: nguoiMoi.email,
+                subject: `[CÔNG VIỆC MỚI] Bạn được giao công việc: ${result.tieu_de}`,
+                template: 'new-task', 
+                context: {
+                    ho_ten: nguoiMoi.ho_ten,
+                    tieu_de: result.tieu_de,
+                    han_chot: result.han_chot ? format(result.han_chot, 'dd/MM/yyyy') : 'Chưa thiết lập', 
+                },
             });
         }
     }

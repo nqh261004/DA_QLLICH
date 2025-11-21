@@ -1,22 +1,34 @@
 <script setup lang="ts">
 import MainLayout from '@/components/MainLayout.vue';
 import { ref, onMounted } from 'vue';
-import { getTasks } from '@/api/taskService';
+import { getTasks, deleteTask } from '@/api/taskService'; 
 import { useRouter } from 'vue-router';
-import { useToast } from "vue-toastification";
-import { ClockIcon, CheckCircleIcon, ExclamationTriangleIcon, AcademicCapIcon, WrenchScrewdriverIcon, ArchiveBoxXMarkIcon, ClipboardDocumentListIcon, EyeIcon } from '@heroicons/vue/24/outline'; 
-
+import { useToast } from "vue-toastification"; 
+import { useAuthStore } from '@/stores/auth';
+import apiClient from '@/api/client'; // Cần để lấy danh sách người dùng
+// Import icons cho giao diện
+import { CheckCircleIcon, ExclamationTriangleIcon, AcademicCapIcon, WrenchScrewdriverIcon, ArchiveBoxXMarkIcon, ClipboardDocumentListIcon, EyeIcon, AdjustmentsHorizontalIcon, ClockIcon, PlusCircleIcon, PencilSquareIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline'; 
 
 const router = useRouter();
+const toast = useToast();
+const authStore = useAuthStore(); 
+
 const tasks = ref<any[]>([]);
+const users = ref<any[]>([]); 
 const isLoading = ref(true);
 const error = ref('');
-const toast = useToast();
 
 const currentPage = ref(1);
-const itemsPerPage = 5;
+const itemsPerPage = 5; 
 
-// Định nghĩa các Icon và Status
+const FINAL_TASK_STATUSES = ['phe_duyet', 'bi_huy'];
+
+// --- STATE MODAL XÓA ---
+const isConfirmDeleteModalOpen = ref(false);
+const taskToDeleteId = ref('');
+const taskToDeleteTitle = ref('');
+
+// Định nghĩa các Icon và Status (Giữ nguyên)
 const STATUS_ICONS: { [key: string]: any } = {
     can_lam: ClipboardDocumentListIcon,
     dang_lam: WrenchScrewdriverIcon,
@@ -27,17 +39,16 @@ const STATUS_ICONS: { [key: string]: any } = {
 };
 
 const taskStatuses = [
-    { key: 'tat_ca', label: 'Tất cả' },
-    { key: 'can_lam', label: 'Cần làm', color: 'text-gray-500' },
-    { key: 'dang_lam', label: 'Đang làm', color: 'text-blue-500' },
-    { key: 'cho_duyet', label: 'Chờ duyệt', color: 'text-yellow-600' },
-    { key: 'phe_duyet', label: 'Phê duyệt', color: 'text-green-600' },
-    { key: 'can_sua', label: 'Cần sửa', color: 'text-orange-500' },
-    { key: 'bi_huy', label: 'Bị hủy', color: 'text-red-600' }, 
+    { key: 'tat_ca', label: 'Tất cả', icon: AdjustmentsHorizontalIcon },
+    { key: 'can_lam', label: 'Cần làm', color: 'text-gray-500', icon: ClipboardDocumentListIcon },
+    { key: 'dang_lam', label: 'Đang làm', color: 'text-blue-500', icon: WrenchScrewdriverIcon },
+    { key: 'cho_duyet', label: 'Chờ duyệt', color: 'text-yellow-600', icon: AcademicCapIcon },
+    { key: 'phe_duyet', label: 'Phê duyệt', color: 'text-green-600', icon: CheckCircleIcon },
+    { key: 'can_sua', label: 'Cần sửa', color: 'text-orange-500', icon: ExclamationTriangleIcon },
+    { key: 'bi_huy', label: 'Bị hủy', color: 'text-red-600', icon: ArchiveBoxXMarkIcon }, 
 ];
 
 const currentFilter = ref('tat_ca'); 
-
 
 const fetchTasks = async () => {
     isLoading.value = true;
@@ -62,6 +73,11 @@ const fetchTasks = async () => {
 
         tasks.value = data;
     } catch (err: any) {
+        if (!authStore.isManager) {
+            error.value = 'Truy cập bị từ chối. Chỉ Quản lý mới có quyền quản lý công việc.';
+        } else {
+            error.value = err.response?.data?.message || 'Không thể tải danh sách công việc.';
+        }
         toast.error(error.value);
         console.error(err);
     } finally {
@@ -74,49 +90,81 @@ const handlePageChange = (newPage: number) => {
     fetchTasks();
 }
 
-// Chuyển hướng đến trang chi tiết
 const viewTaskDetail = (id: string) => {
-    router.push({ name: 'task-detail', params: { id } });
+    router.push({ 
+        name: 'task-detail', 
+        params: { id } ,
+        query: { fromAdmin: 'true' } // Gửi cờ Admin
+    });
 }
 
-// Logic định dạng ngày tháng
+const handleEditDetail = (task: any) => {
+    if (FINAL_TASK_STATUSES.includes(task.trang_thai)) {
+        toast.error(`Không thể chỉnh sửa Task "${task.tieu_de}" vì đã ở trạng thái ${getStatusDisplay(task.trang_thai).label}.`, { timeout: 3500 });
+        return; // Dừng hàm tại đây
+    }
+    router.push({ name: 'admin-edit-task', params: { id: task.id } });
+};
+
+const openDeleteModal = (taskId: string, taskTitle: string) => {
+    taskToDeleteId.value = taskId;
+    taskToDeleteTitle.value = taskTitle;
+    isConfirmDeleteModalOpen.value = true;
+};
+
+const handleDeleteTask = async () => {
+    const id = taskToDeleteId.value;
+    const title = taskToDeleteTitle.value;
+    
+    isConfirmDeleteModalOpen.value = false; 
+
+    try {
+        await deleteTask(id);
+        toast.success(`Công việc "${title}" đã được xóa thành công.`);
+        
+        await fetchTasks();
+    } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi xóa công việc.');
+        error.value = error.response?.data?.message || 'Có lỗi xảy ra khi xóa công việc.';
+    }
+}
+
 const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
-    // Định dạng ngày tháng VN: DD/MM/YYYY
     return new Date(dateString).toLocaleDateString('vi-VN', {
         day: '2-digit', month: '2-digit', year: 'numeric',
     });
 };
 
-// Hàm định dạng trạng thái (Luôn trả về icon hoặc undefined)
+// Hàm định dạng trạng thái
 const getStatusDisplay = (statusKey: string) => {
     const status = taskStatuses.find(s => s.key === statusKey) || { label: 'Không xác định', color: 'text-gray-400' };
     
     return {
         label: status.label,
         color: status.color,
-        // Lấy Icon từ mapping (sẽ là undefined nếu statusKey là 'tat_ca')
         icon: STATUS_ICONS[statusKey],
     }
 };
 
-// Lắng nghe thay đổi filter và tải lại dữ liệu
 const handleFilterChange = (key: string) => {
     currentFilter.value = key;
-    currentPage.value = 1;
     fetchTasks();
 }
 
-// Dùng onMounted để tải dữ liệu lần đầu
-onMounted(fetchTasks);
+const handleCreateNewTask = () => {
+    router.push({ name: 'admin-new-task' }); // Chuyển hướng đến /admin/tasks/new
+}
 
+onMounted(fetchTasks);
 </script>
 
 <template>
     <MainLayout>
         <div class="space-y-8">
-            <h1 class="text-3xl font-bold text-gray-800">Danh sách Công việc Của Tôi</h1>
+            <h1 class="text-3xl font-bold text-gray-800">Quản lý Toàn bộ Công việc Phòng Ban</h1>
 
+            <!-- 1. TASK STATUS FILTERS -->
             <div class="p-4 bg-white rounded-lg shadow-md flex space-x-3 overflow-x-auto">
                 <button v-for="status in taskStatuses" :key="status.key"
                     @click="handleFilterChange(status.key)"
@@ -128,9 +176,19 @@ onMounted(fetchTasks);
                 </button>
             </div>
 
-
+            
+            <!-- Control Panel -->
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-medium">Danh sách Task</h3>
+                <button @click="handleCreateNewTask" 
+                        class="btn-primary bg-indigo-600 hover:bg-indigo-700">
+                    <PlusCircleIcon class="w-5 h-5 mr-1 inline" /> Tạo Công việc Mới
+                </button>
+            </div>
+            
+            <!-- Bảng Dữ liệu -->
             <div class="bg-white p-6 rounded-lg shadow">
-                <p v-if="error" class="text-red-500 mb-4">{{ error }}</p>
+                <p v-if="error" class="alert-error">{{ error }}</p>
                 <p v-if="isLoading" class="text-center py-8 text-lg">Đang tải danh sách công việc...</p>
                 <p v-else-if="tasks.length === 0" class="text-center py-8 text-lg text-gray-500">
                     Không có công việc nào theo bộ lọc hiện tại.
@@ -140,11 +198,11 @@ onMounted(fetchTasks);
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">Tên Công Việc</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Người thực hiện</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dự án</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Người giao việc</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hạn chót</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Chi tiết</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -152,8 +210,8 @@ onMounted(fetchTasks);
                             :class="{'bg-red-50 hover:bg-red-100': new Date(task.han_chot) < new Date() && task.trang_thai !== 'phe_duyet', 'hover:bg-gray-50': true}">
                             
                             <td class="px-6 py-4 font-medium text-gray-900 truncate max-w-xs">{{ task.tieu_de }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ task.nguoi_thuc_hien?.ho_ten || 'N/A' }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ task.du_an?.ten_du_an || 'N/A' }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ task.nguoi_giao_viec?.ho_ten || 'N/A' }}</td>
                             
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold"
                                 :class="{'text-red-500': new Date(task.han_chot) < new Date() && task.trang_thai !== 'phe_duyet'}">
@@ -170,9 +228,23 @@ onMounted(fetchTasks);
                             </td>
 
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                
+                                <!-- NÚT SỬA THÔNG TIN -->
+                                <button @click="handleEditDetail(task)"
+                                    class="action-icon-btn text-blue-600 hover:text-blue-800" title="Chỉnh sửa công việc">
+                                    <PencilSquareIcon class="w-5 h-5 inline" />
+                                </button>
+
+                                <!-- NÚT XEM CHI TIẾT -->
                                 <button @click="viewTaskDetail(task.id)"
-                                        class="text-indigo-600 hover:text-indigo-900 font-bold transition duration-150" title="Xem chi tiết">
+                                    class="action-icon-btn text-indigo-600 hover:text-indigo-900" title="Xem chi tiết">
                                     <EyeIcon class="w-5 h-5 inline" />
+                                </button>
+
+                                <!-- NÚT XÓA -->
+                                <button @click="openDeleteModal(task.id, task.tieu_de)"
+                                    class="action-icon-btn text-red-600 hover:text-red-800" title="Xóa công việc">
+                                    <TrashIcon class="w-5 h-5 inline" />
                                 </button>
                             </td>
                         </tr>
@@ -180,7 +252,7 @@ onMounted(fetchTasks);
                 </table>
             </div>
             <div class="flex justify-between items-center mt-6 p-4 bg-white rounded-lg shadow">
-                <p class="text-sm text-gray-600">
+            <p class="text-sm text-gray-600">
                 Hiển thị {{ tasks.length }} công việc (trang {{ currentPage }})
             </p>
             <div class="flex space-x-3">
@@ -199,16 +271,43 @@ onMounted(fetchTasks);
             </div>
         </div>
         </div>
+        
+        <!-- MODAL XÁC NHẬN XÓA -->
+        <div v-if="isConfirmDeleteModalOpen && taskToDeleteTitle" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-xl font-bold text-red-600">Xác nhận Xóa Công việc</h3>
+                    <button @click="isConfirmDeleteModalOpen = false" class="text-gray-500 hover:text-gray-700">
+                        <XMarkIcon class="w-6 h-6" />
+                    </button>
+                </div>
+                
+                <p class="text-gray-700 mb-6">
+                    Bạn có chắc chắn muốn xóa công việc **{{ taskToDeleteTitle }}** vĩnh viễn? 
+                    <br>Hành động này sẽ xóa vĩnh viễn và không thể hoàn tác.
+                </p>
+                
+                <div class="flex justify-end space-x-3">
+                    <button @click="isConfirmDeleteModalOpen = false" class="btn-secondary">
+                        Hủy bỏ
+                    </button>
+                    <button @click="handleDeleteTask" class="btn-primary bg-red-600 hover:bg-red-700">
+                        Xác nhận Xóa
+                    </button>
+                </div>
+            </div>
+        </div>
     </MainLayout>
 </template>
+
 <style scoped>
-/* Bổ sung style cho nút filter */
+/* Style CSS giữ nguyên */
 .filter-button {
-    /* Đã chuyển từ AdminTasksList.vue sang */
     @apply flex items-center px-4 py-2 border rounded-lg font-semibold text-sm transition duration-150;
 }
-
-/* Style cho các nút phân trang */
+.action-icon-btn {
+    @apply transition duration-150 p-1 rounded hover:bg-gray-200;
+}
 .btn-primary {
     @apply bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded shadow-lg text-sm;
 }
@@ -217,5 +316,8 @@ onMounted(fetchTasks);
 }
 .alert-error {
     @apply text-red-500 p-3 bg-red-100 rounded-lg border border-red-300 font-medium;
+}
+.alert-success {
+    @apply text-green-700 p-3 bg-green-100 rounded-lg border border-green-300 font-medium;
 }
 </style>

@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
 import { DuAn } from './du_an.entity'; 
 import { NguoiDung } from './nguoi_dung.entity'; 
 
@@ -41,20 +41,27 @@ export class CongViec {
   @Column({ type: 'timestamp', nullable: true })
   han_chot: Date;
 
-  // --- CÁC MỐI QUAN HỆ ---
-  
+  // --- QUAN HỆ DỰ ÁN ---
   @ManyToOne(() => DuAn, (duAn) => duAn.cong_viec, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'duAnId' })
   du_an: DuAn;
-  @Column({ type: 'uuid', nullable: false })
+
+  @Column({ name: 'duAnId', type: 'uuid', nullable: false })
   duAnId: string;
 
+  // --- QUAN HỆ NGƯỜI THỰC HIỆN ---
   @ManyToOne(() => NguoiDung, (nguoiDung) => nguoiDung.cong_viec, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'nguoiThucHienId' })  
   nguoi_thuc_hien: NguoiDung;
-  @Column({ type: 'uuid', nullable: true })
+
+  @Column({ name: 'nguoiThucHienId', type: 'uuid', nullable: true })
   nguoiThucHienId: string;
 
-  @ManyToOne(() => NguoiDung, { onDelete: 'SET NULL' }) 
+  // --- QUAN HỆ NGƯỜI GIAO VIỆC ---
+  @ManyToOne(() => NguoiDung, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'nguoiGiaoViecId' })
   nguoi_giao_viec: NguoiDung;
-  @Column({ type: 'uuid', nullable: true })
+
+  @Column({ name: 'nguoiGiaoViecId', type: 'uuid', nullable: true })
   nguoiGiaoViecId: string;
 }

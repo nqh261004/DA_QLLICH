@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, UseGuards, Req, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, UseGuards, Req, Delete, Query } from '@nestjs/common';
 import { NguoiDungService } from './nguoi_dung.service';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.guard';
 import { TaoNguoiDungDto } from './dto/tao_nguoi_dung.dto';
@@ -16,9 +16,9 @@ export class NguoiDungController {
   @Get()
   @Roles(VaiTro.QUAN_LY)
   @UseGuards(RolesGuard)
-  findAll(@Req() req: any) {
+  findAll(@Req() req: any, @Query('page') page: number = 1, @Query('limit') limit: number = 5) {
     const idNguoiDung = req.user.id;
-    return this.nguoiDungService.layTatCaNguoiDung(idNguoiDung); 
+    return this.nguoiDungService.layTatCaNguoiDung(idNguoiDung, page, limit); 
   }
   
   @Post()

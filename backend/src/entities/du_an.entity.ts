@@ -28,6 +28,12 @@ export class DuAn {
     default: TrangThaiDuAn.SAP_BAT_DAU,
   })
   trang_thai: TrangThaiDuAn;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  ngay_bat_dau: Date;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  ngay_ket_thuc_du_kien: Date;
   
   @CreateDateColumn()
   ngay_tao: Date;
