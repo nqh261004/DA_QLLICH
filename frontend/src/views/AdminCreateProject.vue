@@ -4,7 +4,7 @@ import { ref } from 'vue';
 import apiClient from '@/api/client';
 import { useToast } from "vue-toastification";
 import { useRouter } from 'vue-router';
-import { ArchiveBoxIcon, CalendarIcon } from '@heroicons/vue/24/outline'; // Icons
+import { ArchiveBoxIcon, CalendarIcon } from '@heroicons/vue/24/outline'; 
 
 const toast = useToast();
 const router = useRouter();
@@ -26,8 +26,7 @@ const getTodayDate = () => {
 const handleSubmit = async () => {
     error.value = '';
     isSubmitting.value = true;
-    
-    // Kiểm tra cơ bản
+
     if (!form.value.ten_du_an || !form.value.ngay_bat_dau || !form.value.ngay_ket_thuc_du_kien) {
         error.value = 'Vui lòng điền đầy đủ các trường bắt buộc.';
         toast.error(error.value);
@@ -46,7 +45,6 @@ const handleSubmit = async () => {
 
         toast.success(`Dự án "${form.value.ten_du_an}" đã được tạo thành công!`);
 
-        // Chuyển hướng về trang danh sách dự án sau khi tạo xong
         router.push({ name: 'admin-projects' }); 
 
     } catch (err: any) {
@@ -62,7 +60,7 @@ const handleSubmit = async () => {
     <MainLayout>
         <div class="space-y-8 max-w-4xl mx-auto">
             <h1 class="text-3xl font-bold text-gray-800 border-b pb-3 mb-4 flex items-center">
-                <ArchiveBoxIcon class="w-8 h-8 mr-2 text-indigo-600" /> Tạo Dự án Mới
+                <ArchiveBoxIcon class="w-8 h-8 mr-2 text-indigo-600" /> Tạo Dự Án Mới
             </h1>
             
             <p v-if="error" class="alert-error">{{ error }}</p>
@@ -71,23 +69,23 @@ const handleSubmit = async () => {
                 <form @submit.prevent="handleSubmit" :class="{'opacity-50': isSubmitting}">
                     
                     <div class="mb-4">
-                        <label class="label">Tên Dự án</label>
+                        <label class="label">Tên dự án</label>
                         <input type="text" v-model="form.ten_du_an" required
-                               placeholder="Ví dụ: Phát triển Frontend V3" 
+                               placeholder="Nhập tên dự án" 
                                class="form-input">
                     </div>
 
                     <div class="mb-4">
-                        <label class="label">Mô tả (Tùy chọn)</label>
+                        <label class="label">Mô tả dự án</label>
                         <textarea v-model="form.mo_ta" rows="4" 
-                                  placeholder="Mục tiêu chính và phạm vi của dự án..." 
+                                  placeholder="Nhập mô tả dự án" 
                                   class="form-input"></textarea>
                     </div>
                     
                     <div class="grid grid-cols-2 gap-4 mb-6">
                         <div>
                             <label class="label flex items-center">
-                                <CalendarIcon class="w-4 h-4 mr-1"/> Ngày Bắt đầu
+                                <CalendarIcon class="w-4 h-4 mr-1"/> Ngày bắt đầu
                             </label>
                             <input type="date" v-model="form.ngay_bat_dau" required
                                    :min="getTodayDate()"
@@ -95,7 +93,7 @@ const handleSubmit = async () => {
                         </div>
                         <div>
                             <label class="label flex items-center">
-                                <CalendarIcon class="w-4 h-4 mr-1"/> Ngày Kết thúc Dự kiến
+                                <CalendarIcon class="w-4 h-4 mr-1"/> Ngày kết thúc
                             </label>
                             <input type="date" v-model="form.ngay_ket_thuc_du_kien" required
                                    :min="form.ngay_bat_dau || getTodayDate()"

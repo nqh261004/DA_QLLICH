@@ -111,4 +111,15 @@ export class TaskConsumer {
     }
   }
 
+  @Process('task_pending_approval_email')
+  async handleTaskPendingApprovalEmail(job: Job) {
+    this.logger.debug('Bắt đầu gửi email thông báo chờ duyệt');
+    const { to, subject, template, context } = job.data;
+    try {
+        await this.mailerService.sendTaskReminder(to, subject, template, context);
+        this.logger.debug('Mail chờ duyệt đã được gửi');
+    } catch (error: any) {
+        this.logger.error('Gửi thất bại', error.stack);
+    }
+  }
 }

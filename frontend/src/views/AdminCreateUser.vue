@@ -97,11 +97,14 @@ onMounted(() => {
                         </select>
                     </div>
 
-                    <button type="submit" 
-                            :disabled="isSubmitting"
-                            class="w-full btn-primary bg-green-600 hover:bg-green-700">
-                        {{ isSubmitting ? 'Đang tạo...' : 'Tạo Tài khoản' }}
-                    </button>
+                    <div class="flex justify-end space-x-3 pt-4 border-t">
+                        <router-link :to="{name: 'admin-users'}" class="btn-secondary">Hủy</router-link>
+                        <button type="submit" 
+                                :disabled="isSubmitting"
+                                class="btn-primary bg-indigo-600 hover:bg-indigo-700">
+                            {{ isSubmitting ? 'Đang tạo...' : 'Tạo Tài Khoản' }}
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -120,5 +123,8 @@ onMounted(() => {
 }
 .alert-error {
     @apply text-red-500 p-3 bg-red-100 rounded-lg border border-red-300 font-medium;
+}
+.btn-secondary {
+    @apply bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded text-sm;
 }
 </style>

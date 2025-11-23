@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
-// Import icons cho giao diện
-import { HomeIcon, UserGroupIcon, FolderIcon, PlusCircleIcon, UserCircleIcon, ClipboardDocumentListIcon, ArrowLeftEndOnRectangleIcon } from '@heroicons/vue/24/outline'; 
+import { HomeIcon, UserGroupIcon, FolderIcon, UserCircleIcon, ClipboardDocumentListIcon, ArrowLeftEndOnRectangleIcon } from '@heroicons/vue/24/outline'; 
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -12,7 +11,6 @@ const handleLogout = () => {
     router.push({ name: 'login' });
 };
 
-// Hàm định dạng vai trò
 const formatRole = (role: string | null) => {
     if (role === 'quan_ly') return 'Quản lý';
     if (role === 'nhan_vien') return 'Nhân viên';
@@ -24,7 +22,7 @@ const formatRole = (role: string | null) => {
     <div class="flex h-screen bg-gray-100 antialiased">
         
         <aside class="w-64 bg-gray-800 text-white p-4 flex flex-col shadow-xl">
-            <h1 class="text-2xl font-bold mb-6 text-indigo-400 border-b border-gray-700 pb-3">QL Lịch biểu</h1>
+            <h1 class="text-2xl font-bold mb-6 text-indigo-400 border-b border-gray-700 pb-3">QUẢN LÝ LỊCH BIỂU</h1>
             <nav class="flex-1 space-y-2">
                 
                 <router-link to="/" 
@@ -102,12 +100,12 @@ const formatRole = (role: string | null) => {
     transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
 }
 .nav-link:hover {
-    background-color: #374151; /* gray-700 */
+    background-color: #374151; 
     color: #fff;
 }
-/* Active link styling */
+
 .nav-link.router-link-exact-active {
-    background-color: #4f46e5; /* indigo-600 */
+    background-color: #4f46e5; 
     color: white;
 }
 </style>

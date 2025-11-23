@@ -4,7 +4,7 @@ import { ref, onMounted, computed, watch } from 'vue';
 import apiClient from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
 import { useRoute, useRouter } from 'vue-router';
-import { LockClosedIcon, PencilSquareIcon, EnvelopeIcon, BriefcaseIcon, CalendarIcon, UserCircleIcon, HomeIcon } from '@heroicons/vue/24/outline';
+import { LockClosedIcon, PencilSquareIcon, EnvelopeIcon, BriefcaseIcon, CalendarIcon, UserCircleIcon, HomeIcon, EyeIcon, EyeSlashIcon, ArrowLeftIcon } from '@heroicons/vue/24/outline';
 import { useToast } from "vue-toastification"; 
 
 
@@ -13,35 +13,27 @@ const route = useRoute();
 const router = useRouter(); 
 const toast = useToast();
 
-// Dữ liệu người dùng
 const user = ref<any>({}); 
 const nameForm = ref({ ho_ten: '' });
 const passwordForm = ref({ mat_khau_moi: '', xac_nhan_mat_khau: '' });
 
-// Trạng thái giao diện
-const isEditingNameModalOpen = ref(false); // SỬA: Biến Modal cho sửa tên
+const isEditingNameModalOpen = ref(false);
 const isPasswordModalOpen = ref(false); 
 
-// Thông báo
 const error = ref('');
 const successMessage = ref('');
 
-// ID MỤC TIÊU
 const currentProfileId = computed(() => route.params.id || authStore.userId);
 const isSelfProfile = computed(() => currentProfileId.value === authStore.userId);
 
 
-// 1. Tải thông tin cá nhân (Hàm chính)
 const fetchProfile = async () => {
     error.value = '';
     
-    // 1. Xác định URL API dựa trên tên Route
     let url: string;
     if (route.name === 'profile') {
-        // ✅ FIX LỖI: Khi là Self-profile (Nhân viên hoặc QL), gọi endpoint /profile
         url = '/nguoi-dung/profile'; 
     } else if (route.name === 'admin-user-detail') {
-        // Khi Admin xem hồ sơ người khác, gọi endpoint /:id
         url = `/nguoi-dung/${route.params.id}`; 
     } else {
         error.value = 'Lỗi: Không tìm thấy ID người dùng.';
@@ -54,14 +46,10 @@ const fetchProfile = async () => {
         nameForm.value.ho_ten = response.data.ho_ten;
     } catch (err: any) {
         error.value = err.response?.data?.message || 'Không thể tải hồ sơ người dùng.';
-        // Logic chuyển hướng nếu lỗi (đã được đề cập ở bước trước)
     }
 };
 
-// 2. Xử lý logic Đổi mật khẩu (giữ nguyên)
 const handleChangePassword = async () => {
-    if (!isSelfProfile.value) return; 
-
     if (passwordForm.value.mat_khau_moi.length < 6) {
         toast.error('Mật khẩu phải chứa ít nhất 6 ký tự.');
         return;
@@ -72,7 +60,7 @@ const handleChangePassword = async () => {
     }
 
     try {
-        await apiClient.patch(`/nguoi-dung/${authStore.userId}`, { 
+        await apiClient.patch(`/nguoi-dung/${currentProfileId.value}`, { 
             mat_khau: passwordForm.value.mat_khau_moi 
         });
         
@@ -85,12 +73,9 @@ const handleChangePassword = async () => {
     }
 };
 
-// 3. Xử lý logic Sửa tên (chỉ cho Self-profile)
 const handleUpdateName = async () => {
     if (!isSelfProfile.value) return; 
 
-    
-    // Kiểm tra nếu tên không thay đổi
     if (nameForm.value.ho_ten === user.value.ho_ten) {
         isEditingNameModalOpen.value = false;
         return;
@@ -113,8 +98,6 @@ const handleUpdateName = async () => {
     }
 };
 
-
-// 4. Xử lý logic format (giữ nguyên)
 const formatRole = (role: string) => {
     return role === 'quan_ly' ? 'Quản lý' : 'Nhân viên';
 };
@@ -122,12 +105,17 @@ const formatStatus = (status: boolean) => {
     return status ? 'Hoạt động' : 'Vô hiệu';
 };
 
-// Lắng nghe thay đổi ID trên URL
 watch(() => route.params.id, (newId, oldId) => {
     if (newId !== oldId && newId) {
         fetchProfile();
     }
 });
+
+const showPassword = ref(false);
+
+const togglePasswordVisibility = () => {
+    showPassword.value = !showPassword.value;
+};
 
 onMounted(fetchProfile);
 </script>
@@ -135,6 +123,10 @@ onMounted(fetchProfile);
 <template>
     <MainLayout>
         <div class="space-y-8">
+            <button @click="router.back()" class="text-blue-600 hover:text-blue-800 flex items-center mb-4">
+            <ArrowLeftIcon class="w-5 h-5 mr-2" />
+            Quay lại 
+            </button>
             <h1 class="text-3xl font-bold text-gray-800 border-b pb-3 mb-4">
                 <UserCircleIcon class="w-8 h-8 mr-2 inline text-indigo-600" /> 
                 {{ isSelfProfile ? 'Hồ sơ Cá nhân' : `Hồ sơ: ${user.ho_ten}` }}
@@ -163,23 +155,17 @@ onMounted(fetchProfile);
                             </span>
                         </div>
                         
-                        <div v-if="isSelfProfile" class="mt-6 flex flex-col space-y-3">
-                            <button @click="isEditingNameModalOpen = true" 
-                                class="profile-action-button bg-indigo-500 hover:bg-indigo-600">
-                                <PencilSquareIcon class="w-5 h-5 mr-2" /> Đổi Tên
+                        <div class="mt-6 flex flex-col space-y-3">
+                            <button v-if="isSelfProfile" @click="isEditingNameModalOpen = true" 
+                            class="profile-action-button bg-indigo-500 hover:bg-indigo-600">
+                            <PencilSquareIcon class="w-5 h-5 mr-2" /> Đổi Tên
                             </button>
-                            <button @click="isPasswordModalOpen = true" 
-                                class="profile-action-button bg-red-500 hover:bg-red-600">
-                                <LockClosedIcon class="w-5 h-5 mr-2" /> Đổi Mật khẩu
+
+                            <button v-if="isSelfProfile || authStore.isManager" @click="isPasswordModalOpen = true" 
+                            class="profile-action-button bg-red-500 hover:bg-red-600">
+                            <LockClosedIcon class="w-5 h-5 mr-2" /> Đổi Mật khẩu
                             </button>
                         </div>
-                    </div>
-
-                    <div v-if="!isSelfProfile && authStore.isManager" class="mt-4">
-                         <button @click="router.push({ name: 'admin-users' })" 
-                                class="w-full btn-secondary">
-                             <HomeIcon class="w-5 h-5 mr-2 inline" /> Quay lại Quản lý Tài khoản
-                        </button>
                     </div>
                 </div>
 
@@ -199,7 +185,7 @@ onMounted(fetchProfile);
                         </p>
                         <p class="detail-item">
                             <CalendarIcon class="w-6 h-6 mr-3 text-indigo-500" /> 
-                            <span class="text-gray-500">Tham gia từ:</span> <strong>{{ new Date(user.ngay_tao).toLocaleDateString('vi-VN') }}</strong>
+                            <span class="text-gray-500">Ngày tham gia:</span> <strong>{{ new Date(user.ngay_tao).toLocaleDateString('vi-VN') }}</strong>
                         </p>
                     </div>
                 </div>
@@ -224,29 +210,58 @@ onMounted(fetchProfile);
                 </div>
             </div>
 
-            <div v-if="isPasswordModalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div class="modal-content">
-                    <h2 class="text-2xl font-bold mb-4 border-b pb-2 text-red-600 flex items-center">
-                        <LockClosedIcon class="w-6 h-6 mr-2" /> Đổi Mật khẩu
-                    </h2>
-                    <form @submit.prevent="handleChangePassword" class="space-y-4">
-                        <div class="mb-4">
-                            <label for="mat_khau_moi" class="label">Mật khẩu mới</label>
-                            <input type="password" id="mat_khau_moi" required v-model="passwordForm.mat_khau_moi" class="form-input" placeholder="Tối thiểu 6 ký tự">
-                        </div>
-                        <div class="mb-6">
-                            <label for="xac_nhan_mat_khau" class="label">Xác nhận Mật khẩu</label>
-                            <input type="password" id="xac_nhan_mat_khau" required v-model="passwordForm.xac_nhan_mat_khau" class="form-input" placeholder="Nhập lại mật khẩu mới">
-                        </div>
-                        
-                        <div class="flex justify-end space-x-3">
-                            <button type="button" @click="isPasswordModalOpen = false" class="btn-secondary">Hủy</button>
-                            <button type="submit" class="btn-primary">Xác nhận Đổi</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+<div v-if="isPasswordModalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div class="modal-content relative">
+    <h2 class="text-2xl font-bold mb-4 border-b pb-2 text-red-600 flex items-center">
+      <LockClosedIcon class="w-6 h-6 mr-2" /> Đổi Mật khẩu
+    </h2>
+
+    <form @submit.prevent="handleChangePassword" class="space-y-4">
+
+      <!-- Mật khẩu mới -->
+      <div class="mb-4 relative">
+        <label for="mat_khau_moi" class="label">Mật khẩu mới</label>
+        <input 
+          :type="showPassword ? 'text' : 'password'"
+          id="mat_khau_moi"
+          v-model="passwordForm.mat_khau_moi"
+          required
+          placeholder="Tối thiểu 6 ký tự"
+          class="form-input pr-10"
+        />
+        <button type="button" @click="togglePasswordVisibility"
+                class="absolute inset-y-0 right-3 flex items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none">
+          <EyeIcon v-if="!showPassword" class="h-5 w-5" />
+          <EyeSlashIcon v-else class="h-5 w-5" />
+        </button>
+      </div>
+
+      <div class="mb-6 relative">
+        <label for="xac_nhan_mat_khau" class="label">Xác nhận Mật khẩu</label>
+        <input 
+          :type="showPassword ? 'text' : 'password'"
+          id="xac_nhan_mat_khau"
+          v-model="passwordForm.xac_nhan_mat_khau"
+          required
+          placeholder="Nhập lại mật khẩu mới"
+          class="form-input pr-10"
+        />
+        <button type="button" @click="togglePasswordVisibility"
+                class="absolute inset-y-0 right-3 flex items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none">
+          <EyeIcon v-if="!showPassword" class="h-5 w-5" />
+          <EyeSlashIcon v-else class="h-5 w-5" />
+        </button>
+      </div>
+
+      <div class="flex justify-end space-x-3">
+        <button type="button" @click="isPasswordModalOpen = false" class="btn-secondary">Hủy</button>
+        <button type="submit" class="btn-primary">Xác nhận Đổi</button>
+      </div>
+
+    </form>
+  </div>
+</div>
+</div>
     </MainLayout>
 </template>
 

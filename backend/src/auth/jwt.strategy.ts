@@ -28,15 +28,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: { sub: string; email: string; vai_tro: VaiTro }) {
     // console.log('--- Bắt đầu xác thực Token ---');
     // console.log('Payload nhận được:', payload);
-
     const nguoiDung = await this.nguoiDungRepository.findOne({
       where: { id: payload.sub },
       select: ['id', 'email', 'ho_ten', 'vai_tro', 'trang_thai_hoat_dong'],
     });
-
     // console.log('Người dùng tìm thấy từ DB:', nguoiDung);
     // console.log('--- Kết thúc xác thực Token ---');
-
     if (!nguoiDung) {
       throw new UnauthorizedException('Token không hợp lệ.');
     }

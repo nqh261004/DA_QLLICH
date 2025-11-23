@@ -5,8 +5,6 @@ import { getTasks, deleteTask } from '@/api/taskService';
 import { useRouter } from 'vue-router';
 import { useToast } from "vue-toastification"; 
 import { useAuthStore } from '@/stores/auth';
-import apiClient from '@/api/client'; // Cần để lấy danh sách người dùng
-// Import icons cho giao diện
 import { CheckCircleIcon, ExclamationTriangleIcon, AcademicCapIcon, WrenchScrewdriverIcon, ArchiveBoxXMarkIcon, ClipboardDocumentListIcon, EyeIcon, AdjustmentsHorizontalIcon, ClockIcon, PlusCircleIcon, PencilSquareIcon, TrashIcon, XMarkIcon } from '@heroicons/vue/24/outline'; 
 
 const router = useRouter();
@@ -23,12 +21,10 @@ const itemsPerPage = 5;
 
 const FINAL_TASK_STATUSES = ['phe_duyet', 'bi_huy'];
 
-// --- STATE MODAL XÓA ---
 const isConfirmDeleteModalOpen = ref(false);
 const taskToDeleteId = ref('');
 const taskToDeleteTitle = ref('');
 
-// Định nghĩa các Icon và Status (Giữ nguyên)
 const STATUS_ICONS: { [key: string]: any } = {
     can_lam: ClipboardDocumentListIcon,
     dang_lam: WrenchScrewdriverIcon,
@@ -64,7 +60,6 @@ const fetchTasks = async () => {
 
         const data = await getTasks(params);
 
-        // Nếu không có dữ liệu mà page > 1, quay lại page trước
         if (data.length === 0 && currentPage.value > 1) {
             currentPage.value -= 1;
             await fetchTasks();
@@ -94,14 +89,14 @@ const viewTaskDetail = (id: string) => {
     router.push({ 
         name: 'task-detail', 
         params: { id } ,
-        query: { fromAdmin: 'true' } // Gửi cờ Admin
+        query: { fromAdmin: 'true' }
     });
 }
 
 const handleEditDetail = (task: any) => {
     if (FINAL_TASK_STATUSES.includes(task.trang_thai)) {
         toast.error(`Không thể chỉnh sửa Task "${task.tieu_de}" vì đã ở trạng thái ${getStatusDisplay(task.trang_thai).label}.`, { timeout: 3500 });
-        return; // Dừng hàm tại đây
+        return; 
     }
     router.push({ name: 'admin-edit-task', params: { id: task.id } });
 };
@@ -136,7 +131,6 @@ const formatDate = (dateString: string) => {
     });
 };
 
-// Hàm định dạng trạng thái
 const getStatusDisplay = (statusKey: string) => {
     const status = taskStatuses.find(s => s.key === statusKey) || { label: 'Không xác định', color: 'text-gray-400' };
     
@@ -153,7 +147,7 @@ const handleFilterChange = (key: string) => {
 }
 
 const handleCreateNewTask = () => {
-    router.push({ name: 'admin-new-task' }); // Chuyển hướng đến /admin/tasks/new
+    router.push({ name: 'admin-new-task' }); 
 }
 
 onMounted(fetchTasks);
@@ -164,7 +158,6 @@ onMounted(fetchTasks);
         <div class="space-y-8">
             <h1 class="text-3xl font-bold text-gray-800">Quản lý Toàn bộ Công việc Phòng Ban</h1>
 
-            <!-- 1. TASK STATUS FILTERS -->
             <div class="p-4 bg-white rounded-lg shadow-md flex space-x-3 overflow-x-auto">
                 <button v-for="status in taskStatuses" :key="status.key"
                     @click="handleFilterChange(status.key)"
@@ -176,17 +169,14 @@ onMounted(fetchTasks);
                 </button>
             </div>
 
-            
-            <!-- Control Panel -->
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-medium">Danh sách Task</h3>
                 <button @click="handleCreateNewTask" 
                         class="btn-primary bg-indigo-600 hover:bg-indigo-700">
-                    <PlusCircleIcon class="w-5 h-5 mr-1 inline" /> Tạo Công việc Mới
+                    <bg-indigo-600 hover:bg-indigo-700/> + Tạo Công việc Mới
                 </button>
             </div>
-            
-            <!-- Bảng Dữ liệu -->
+
             <div class="bg-white p-6 rounded-lg shadow">
                 <p v-if="error" class="alert-error">{{ error }}</p>
                 <p v-if="isLoading" class="text-center py-8 text-lg">Đang tải danh sách công việc...</p>
@@ -228,20 +218,17 @@ onMounted(fetchTasks);
                             </td>
 
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                
-                                <!-- NÚT SỬA THÔNG TIN -->
+
                                 <button @click="handleEditDetail(task)"
                                     class="action-icon-btn text-blue-600 hover:text-blue-800" title="Chỉnh sửa công việc">
                                     <PencilSquareIcon class="w-5 h-5 inline" />
                                 </button>
 
-                                <!-- NÚT XEM CHI TIẾT -->
                                 <button @click="viewTaskDetail(task.id)"
                                     class="action-icon-btn text-indigo-600 hover:text-indigo-900" title="Xem chi tiết">
                                     <EyeIcon class="w-5 h-5 inline" />
                                 </button>
 
-                                <!-- NÚT XÓA -->
                                 <button @click="openDeleteModal(task.id, task.tieu_de)"
                                     class="action-icon-btn text-red-600 hover:text-red-800" title="Xóa công việc">
                                     <TrashIcon class="w-5 h-5 inline" />
@@ -271,20 +258,18 @@ onMounted(fetchTasks);
             </div>
         </div>
         </div>
-        
-        <!-- MODAL XÁC NHẬN XÓA -->
+
         <div v-if="isConfirmDeleteModalOpen && taskToDeleteTitle" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
                 <div class="flex justify-between items-center border-b pb-3 mb-4">
-                    <h3 class="text-xl font-bold text-red-600">Xác nhận Xóa Công việc</h3>
+                    <h3 class="text-xl font-bold text-red-600">Xác nhận</h3>
                     <button @click="isConfirmDeleteModalOpen = false" class="text-gray-500 hover:text-gray-700">
                         <XMarkIcon class="w-6 h-6" />
                     </button>
                 </div>
                 
                 <p class="text-gray-700 mb-6">
-                    Bạn có chắc chắn muốn xóa công việc **{{ taskToDeleteTitle }}** vĩnh viễn? 
-                    <br>Hành động này sẽ xóa vĩnh viễn và không thể hoàn tác.
+                    Bạn có chắc chắn muốn xóa công việc {{ taskToDeleteTitle }} không? 
                 </p>
                 
                 <div class="flex justify-end space-x-3">
@@ -292,7 +277,7 @@ onMounted(fetchTasks);
                         Hủy bỏ
                     </button>
                     <button @click="handleDeleteTask" class="btn-primary bg-red-600 hover:bg-red-700">
-                        Xác nhận Xóa
+                        Xoá
                     </button>
                 </div>
             </div>
@@ -301,7 +286,6 @@ onMounted(fetchTasks);
 </template>
 
 <style scoped>
-/* Style CSS giữ nguyên */
 .filter-button {
     @apply flex items-center px-4 py-2 border rounded-lg font-semibold text-sm transition duration-150;
 }

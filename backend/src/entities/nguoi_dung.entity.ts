@@ -28,9 +28,6 @@ export class NguoiDung {
   })
   vai_tro: VaiTro;
 
-  @Column({ nullable: true }) 
-  avatar: string;
-
   @Column({ type: 'boolean', default: true }) 
   trang_thai_hoat_dong: boolean;
   

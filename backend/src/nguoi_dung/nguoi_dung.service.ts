@@ -46,7 +46,7 @@ export class NguoiDungService {
 
     const tonTai = await this.nguoiDungRepository.findOneBy({ email: taoNguoiDungDto.email });
     if (tonTai) {
-      throw new ForbiddenException('Email đã được sử dụng cho tài khoản khác.');
+      throw new ForbiddenException('Email đã được sử dụng.');
     }
 
     const salt = await bcrypt.genSalt();
@@ -107,6 +107,15 @@ export class NguoiDungService {
     const trangThaiHoatDongCu = nguoiDungCanSua.trang_thai_hoat_dong;
     const isPasswordBeingChanged = !!capNhatNguoiDungDto.mat_khau;
 
+    if (capNhatNguoiDungDto.mat_khau) {
+        if (isSelfUpdate || isManager) { 
+            const salt = await bcrypt.genSalt();
+            capNhatNguoiDungDto.mat_khau = await bcrypt.hash(capNhatNguoiDungDto.mat_khau, salt);
+        } else {
+            throw new ForbiddenException('Bạn không có quyền cập nhật mật khẩu cho người dùng này.');
+        }
+    }
+
     if (!isManager) { 
         if (capNhatNguoiDungDto.trang_thai_hoat_dong !== undefined) {
              throw new ForbiddenException('Nhân viên không được phép thay đổi trạng thái hoạt động.');
@@ -114,14 +123,6 @@ export class NguoiDungService {
         if (capNhatNguoiDungDto.phongBanId !== undefined) {
             throw new ForbiddenException('Nhân viên không được phép thay đổi phòng ban.');
         }
-    }
-
-    if (capNhatNguoiDungDto.mat_khau) {
-      if (capNhatNguoiDungDto.mat_khau.length < 6) { 
-        throw new BadRequestException('Mật khẩu phải chứa ít nhất 6 ký tự.');
-      }
-      const salt = await bcrypt.genSalt();
-      capNhatNguoiDungDto.mat_khau = await bcrypt.hash(capNhatNguoiDungDto.mat_khau, salt);
     }
 
     Object.assign(nguoiDungCanSua, capNhatNguoiDungDto);

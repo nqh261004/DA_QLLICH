@@ -49,19 +49,17 @@ const fetchUsers = async () => {
 
         users.value = response.data;
     } catch (err: any) {
-        // ... (Xử lý lỗi truy cập và phân quyền giữ nguyên) ...
+
     } finally {
         isLoading.value = false;
     }
 };
 
-// 🔥 HÀM MỚI: XỬ LÝ CHUYỂN TRANG
 const handlePageChange = (newPage: number) => {
     currentPage.value = newPage;
     fetchUsers();
 }
 
-// --- LOGIC: THAY ĐỔI TRẠNG THÁI ---
 const toggleStatus = async (user: User) => {
     const newStatus = !user.trang_thai_hoat_dong;
     error.value = ''; 
@@ -96,7 +94,6 @@ const openDeleteModal = (user: User) => {
     isDeleteModalOpen.value = true;
 };
 
-// --- LOGIC: XÓA TÀI KHOẢN ---
 const deleteUser = async () => {
     if (!userToDelete.value) return; 
 
@@ -115,7 +112,6 @@ const deleteUser = async () => {
     }
 };
 
-// --- HÀM CHUYỂN HƯỚNG XEM CHI TIẾT ---
 const viewUserDetail = (userId: string) => {
     router.push(`/admin/user-detail/${userId}`); 
 };

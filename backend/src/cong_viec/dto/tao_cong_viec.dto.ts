@@ -23,7 +23,7 @@ export class TaoCongViecDto {
   @IsNotEmpty({ message: 'Cần chỉ định ID dự án.' })
   id_du_an: string;
 
-  @IsUUID('4', { message: 'ID người thực hiện không hợp lệ.' })
+  @IsString({message: 'ID người thực hiện không hợp lệ.'})
   @IsNotEmpty({ message: 'Cần chỉ định người thực hiện.' })
   id_nguoi_thuc_hien: string;
 }

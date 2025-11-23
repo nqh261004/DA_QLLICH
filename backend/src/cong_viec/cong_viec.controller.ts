@@ -13,7 +13,7 @@ export class CongViecController {
   @Post()
   create(@Req() req: any, @Body() taoCongViecDto: TaoCongViecDto) {
     const idNguoiTao = req.user.id;
-    return this.congViecService.taoCongViec(idNguoiTao, taoCongViecDto);
+    return this.congViecService.taoCongViec(taoCongViecDto, idNguoiTao);
   }
   
 @Get()

@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/c
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { NguoiDung, VaiTro } from 'src/entities/nguoi_dung.entity';
+import { NguoiDung} from 'src/entities/nguoi_dung.entity';
 import { DangNhapDto } from './dto/dang-nhap.dto';
 import { JwtService } from '@nestjs/jwt';
 
@@ -38,4 +38,5 @@ export class AuthService {
       accessToken: await this.jwtService.signAsync(payload),
     };
   }
+
 }

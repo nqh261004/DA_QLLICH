@@ -7,4 +7,4 @@ async function hashPassword(password) {
   console.log(`Chuỗi Hash là: ${hash}`);
 }
 
-hashPassword('1233456');
+hashPassword('123456');

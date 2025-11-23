@@ -22,7 +22,6 @@ const isLoading = ref(true);
 const error = ref('');
 const successMessage = ref('');
 
-// Logic để tải dữ liệu chi tiết của dự án
 const fetchProject = async (id: string) => {
     isLoading.value = true;
     error.value = '';
@@ -35,13 +34,12 @@ const fetchProject = async (id: string) => {
         };
     } catch (err: any) {
         error.value = 'Không thể tải chi tiết dự án. Vui lòng kiểm tra ID.';
-        router.push({ name: 'admin-projects' }); // Quay về trang danh sách nếu lỗi
+        router.push({ name: 'admin-projects' }); 
     } finally {
         isLoading.value = false;
     }
 };
 
-// Hàm xử lý cập nhật (Chỉ sửa tên và mô tả)
 const handleSubmit = async () => {
     error.value = '';
     isSubmitting.value = true;
@@ -59,7 +57,6 @@ const handleSubmit = async () => {
         toast.success(`Cập nhật dự án "${form.value.ten_du_an}" thành công!`);
         successMessage.value = 'Đã lưu thay đổi thành công.';
 
-        // Cập nhật lại tên dự án trên View
         project.value.ten_du_an = form.value.ten_du_an;
         project.value.mo_ta = form.value.mo_ta;
         
@@ -94,7 +91,7 @@ onMounted(() => fetchProject(projectId.value));
                         <p class="text-lg font-semibold">{{ new Date(project.ngay_bat_dau).toLocaleDateString('vi-VN') }}</p>
                     </div>
                      <div>
-                        <label class="label flex items-center"><CalendarIcon class="w-4 h-4 mr-1"/> Ngày Kết thúc Dự kiến</label>
+                        <label class="label flex items-center"><CalendarIcon class="w-4 h-4 mr-1"/> Ngày Kết thúc</label>
                         <p class="text-lg font-semibold">{{ new Date(project.ngay_ket_thuc_du_kien).toLocaleDateString('vi-VN') }}</p>
                     </div>
                 </div>
@@ -111,16 +108,16 @@ onMounted(() => fetchProject(projectId.value));
                     <div class="mb-6">
                         <label class="label">Mô tả</label>
                         <textarea v-model="form.mo_ta" rows="4" 
-                                  placeholder="Mục tiêu chính và phạm vi của dự án..." 
+                                  placeholder="Mô tả dự án" 
                                   class="form-input"></textarea>
                     </div>
 
                     <div class="flex justify-end space-x-3 pt-4 border-t">
-                        <router-link :to="{name: 'admin-projects'}" class="btn-secondary">Hủy & Quay lại</router-link>
+                        <router-link :to="{name: 'admin-projects'}" class="btn-secondary">Hủy</router-link>
                         <button type="submit" 
                                 :disabled="isSubmitting"
                                 class="btn-primary bg-indigo-600 hover:bg-indigo-700">
-                            {{ isSubmitting ? 'Đang lưu...' : 'Lưu Thay đổi' }}
+                            {{ isSubmitting ? 'Đang lưu...' : 'Lưu' }}
                         </button>
                     </div>
                 </form>

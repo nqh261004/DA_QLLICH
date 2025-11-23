@@ -1,8 +1,6 @@
-// frontend/src/router/index.ts (CODE ĐÃ SỬA FINAL)
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
-// Import Views
 import Login from '@/views/Login.vue';
 import Dashboard from '@/views/Dashboard.vue';
 import TasksList from '@/views/TasksList.vue';
@@ -23,14 +21,12 @@ const router = createRouter({
   routes: [
     { path: '/login', name: 'login', component: Login, meta: { requiresAuth: false } },
     { path: '/', name: 'dashboard', component: Dashboard, meta: { requiresAuth: true } },
-    
-    // Chung cho QL & NV
+
     { path: '/profile', name: 'profile', component: UserProfile, meta: { requiresAuth: true } },
     { path: '/tasks', name: 'tasks-list', component: TasksList, meta: { requiresAuth: true } },
-    
-    // ĐÃ SỬA: Dùng TaskDetail.vue cho route chi tiết
+
     { path: '/tasks/:id', name: 'task-detail', component: TaskDetail, meta: { requiresAuth: true } }, 
-    
+
     // Routes Admin (Chỉ QL)
     {
       path: '/admin/users',
@@ -42,14 +38,14 @@ const router = createRouter({
     {
       path: '/admin/users/new', 
       name: 'admin-create-user',
-      component: AdminCreateUser, // Sử dụng Component Form Tạo Tài khoản
+      component: AdminCreateUser, 
       meta: { requiresAuth: true, role: 'quan_ly' },
     },
 
     {
       path: '/admin/user-detail/:id',
       name: 'admin-user-detail',
-      component: UserProfile, // Dùng lại Component Profile
+      component: UserProfile,
       meta: { requiresAuth: true, role: 'quan_ly' },
     },
     
@@ -63,9 +59,9 @@ const router = createRouter({
     {
       path: '/admin/projects/:id/details', 
       name: 'admin-project-detail',
-      component: AdminProjectDetail, // SỬ DỤNG COMPONENT ĐÃ TẠO
+      component: AdminProjectDetail, 
       meta: { requiresAuth: true, role: 'quan_ly' },
-      props: true, // Cho phép truyền ID qua props nếu cần
+      props: true, 
     },
 
     {
@@ -105,21 +101,16 @@ const router = createRouter({
   ],
 });
 
-// Navigation Guard: Bảo vệ các tuyến đường
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
 
-  // 1. Kiểm tra Xác thực (Authentication)
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     return next({ name: 'login' });
   }
 
-  // 2. Kiểm tra Phân quyền (Authorization - RBAC)
   if (to.meta.role && authStore.userRole !== to.meta.role) {
-    // Nếu không đủ quyền, chuyển hướng về dashboard
     return next({ name: 'dashboard' }); 
   }
-
   next();
 });
 

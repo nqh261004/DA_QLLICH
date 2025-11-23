@@ -5,7 +5,7 @@ import { getProjects, updateProject, deleteProject } from '@/api/projectService'
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 import { useToast } from "vue-toastification"; 
-import { ArchiveBoxIcon, CheckCircleIcon, PlayIcon, TrashIcon, XMarkIcon, AdjustmentsHorizontalIcon, ClockIcon, PencilSquareIcon, EyeIcon } from '@heroicons/vue/24/outline'; 
+import { ArchiveBoxIcon, CheckCircleIcon, PlayIcon, TrashIcon, XMarkIcon, ClockIcon, PencilSquareIcon, EyeIcon } from '@heroicons/vue/24/outline'; 
 
 const authStore = useAuthStore();
 const toast = useToast();
@@ -20,15 +20,14 @@ const itemsPerPage = 5;
 
 const FINAL_PROJECT_STATUSES = ['hoan_thanh', 'huy'];
 
-// --- STATE MODAL VÀ ACTION ---
-const isCreateModalOpen = ref(false); // Modal Tạo Dự án
-const isConfirmModalOpen = ref(false); // Modal Xác nhận Hành động
-const projectToActOn = ref<any>(null); // Dự án đang được chọn
-const currentAction = ref<'HOAN_THANH' | 'HUY' | 'DELETE' | null>(null); // Hành động đang chờ xác nhận
-// --- STATE FILTER ---
+const isCreateModalOpen = ref(false);
+const isConfirmModalOpen = ref(false); 
+const projectToActOn = ref<any>(null); 
+const currentAction = ref<'HOAN_THANH' | 'HUY' | 'DELETE' | null>(null);
+
 const currentFilter = ref('tat_ca'); 
 const projectStatuses = [
-    { key: 'tat_ca', label: 'Tất cả', icon: AdjustmentsHorizontalIcon },
+    { key: 'tat_ca', label: 'Tất cả'},
     { key: 'sap_bat_dau', label: 'Sắp bắt đầu', icon: ClockIcon },
     { key: 'dang_tien_hanh', label: 'Đang tiến hành', icon: PlayIcon },
     { key: 'hoan_thanh', label: 'Hoàn thành', icon: CheckCircleIcon },
@@ -42,14 +41,12 @@ interface Project {
     ngay_tao: string;
 }
 
-// Logic để tải danh sách dự án (ĐÃ SỬA: Nhận tham số filter)
 const fetchProjects = async () => {
     try {
         error.value = '';
-        // Tạo tham số filter
         const params: { trang_thai?: string, page?: number, limit?: number } = {};
         if (currentFilter.value !== 'tat_ca') {
-            params.trang_thai = currentFilter.value.toUpperCase(); // Chuyển sang uppercase cho Backend
+            params.trang_thai = currentFilter.value.toUpperCase(); 
         }
 
         params.page = currentPage.value;
@@ -79,7 +76,6 @@ const handlePageChange = (newPage: number) => {
     fetchProjects();
 }
 
-// Hàm định dạng trạng thái
 const getStatusDisplay = (statusKey: string) => {
     const statuses: { [key: string]: any } = {
         sap_bat_dau: { label: 'Sắp bắt đầu', bg: 'bg-indigo-100', text: 'text-indigo-800', icon: PlayIcon },
@@ -90,7 +86,6 @@ const getStatusDisplay = (statusKey: string) => {
     return statuses[statusKey.toLowerCase()] || statuses['sap_bat_dau'];
 };
 
-// --- LOGIC: Xử lý thay đổi Filter ---
 const handleFilterChange = (key: string) => {
     currentFilter.value = key;
     fetchProjects(); 
@@ -99,9 +94,7 @@ const handleFilterChange = (key: string) => {
 const handleViewDetail = (id: string) => {
     router.push({ name: 'admin-project-detail', params: { id: id } });
 };
-// --- KẾT THÚC LOGIC ---
 
-// Hàm xử lý các hành động QUẢN TRỊ (Hoàn thành, Hủy, Xóa)
 const handleConfirmAction = async () => {
     if (!projectToActOn.value || !currentAction.value) return;
 
@@ -115,48 +108,38 @@ const handleConfirmAction = async () => {
             await deleteProject(project.id);
             toast.success(`Dự án "${project.ten_du_an}" đã bị xóa.`);
         } else {
-            const newStatusKey = action.toLowerCase(); // Chuyển thành 'hoan_thanh' hoặc 'huy'
+            const newStatusKey = action.toLowerCase(); 
             
-            await updateProject(project.id, { trang_thai: newStatusKey }); // Gửi status lowercase
+            await updateProject(project.id, { trang_thai: newStatusKey }); 
             
             toast.success(`Dự án "${project.ten_du_an}" đã chuyển sang trạng thái ${getStatusDisplay(newStatusKey).label}.`);
         }
-        
-        // Dọn dẹp Modal và tải lại dữ liệu
         isConfirmModalOpen.value = false;
         await fetchProjects();
 
     } catch (err: any) {
-        // Bắt lỗi Task-based Integrity (ví dụ: còn Task chưa phê duyệt)
         const errorMessage = err.response?.data?.message || 'Thực hiện hành động thất bại.';
         toast.error(errorMessage);
         error.value = errorMessage;
     }
 };
 
-// Hàm mở Modal xác nhận
 const handleOpenModal = (project: Project, action: 'HOAN_THANH' | 'HUY' | 'DELETE') => {
     projectToActOn.value = project;
     currentAction.value = action;
     isConfirmModalOpen.value = true;
 };
 
-// Logic khi tạo dự án xong (từ ProjectForm)
 const handleProjectCreated = () => {
     toast.success('Dự án mới đã được tạo thành công.');
     fetchProjects();
 }
 
 const handleEditProjectDetail = (project: any) => {
-    // 1. Kiểm tra trạng thái Dự án (Logic CHẶN)
     if (FINAL_PROJECT_STATUSES.includes(project.trang_thai)) {
-        // Nếu ở trạng thái kết thúc, CHẶN và hiển thị Toast lỗi
         toast.error(`Không thể chỉnh sửa Dự án "${project.ten_du_an}" vì đã ở trạng thái ${getStatusDisplay(project.trang_thai).label}.`);
-        return; // Dừng hàm tại đây
+        return; 
     }
-
-    
-    // Chuyển hướng đến trang sửa dự án
     router.push({ name: 'admin-edit-project', params: { id: project.id } });
 };
 
@@ -185,8 +168,7 @@ onMounted(() => {
                     <button v-for="status in projectStatuses" :key="status.key"
                         @click="handleFilterChange(status.key)"
                         class="filter-button"
-                        :class="{'bg-indigo-600 text-white shadow-lg': currentFilter === status.key, 'bg-gray-200 text-gray-700 hover:bg-gray-300': currentFilter !== status.key}">
-                        
+                        :class="{'bg-indigo-600 text-white shadow-lg': currentFilter === status.key, 'bg-gray-200 text-gray-700 hover:bg-gray-300': currentFilter !== status.key}">                 
                         <component :is="status.icon" class="w-5 h-5 mr-1" />
                         {{ status.label }}
                     </button>
@@ -227,9 +209,9 @@ onMounted(() => {
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
 
                                     <button @click="handleViewDetail(project.id)"
-            class="action-icon-btn text-blue-600 hover:text-blue-800" title="Xem chi tiết dự án">
-        <EyeIcon class="w-5 h-5 inline" />
-    </button>
+                                        class="action-icon-btn text-blue-600 hover:text-blue-800" title="Xem chi tiết dự án">
+                                        <EyeIcon class="w-5 h-5 inline" />
+                                    </button>
 
                                     <button @click="handleEditProjectDetail(project)"
                                         class="action-icon-btn text-blue-600 hover:text-blue-800" title="Sửa thông tin">
@@ -267,20 +249,20 @@ onMounted(() => {
         <div v-if="isConfirmModalOpen && projectToActOn" class="modal-overlay">
             <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
                 <div class="flex justify-between items-center border-b pb-3 mb-4">
-                    <h3 class="text-xl font-semibold text-red-600 mb-4 flex items-center">Xác nhận Hành động</h3>
+                    <h3 class="text-xl font-semibold text-red-600 mb-4 flex items-center">Xác nhận</h3>
                     <button @click="isConfirmModalOpen = false" class="text-gray-500 hover:text-gray-700">
                         <XMarkIcon class="w-6 h-6" />
                     </button>
                 </div>
                 
                 <p v-if="currentAction === 'DELETE'" class="mb-6 text-gray-700">
-                    Bạn có chắc chắn muốn XÓA DỰ ÁN "**{{ projectToActOn.ten_du_an }}**" vĩnh viễn không? Hành động này sẽ xóa tất cả công việc liên quan và không thể hoàn tác.
+                    Bạn có chắc chắn muốn xoá dự án {{ projectToActOn.ten_du_an }} không?
                 </p>
                  <p v-else-if="currentAction === 'HUY'" class="mb-6 text-gray-700">
-                    Bạn có chắc chắn muốn **HỦY DỰ ÁN** "**{{ projectToActOn.ten_du_an }}**" không? Tất cả công việc đang làm sẽ được chuyển sang trạng thái "Bị hủy" và email thông báo sẽ được gửi.
+                    Bạn có chắc chắn muốn huỷ bỏ dự án {{ projectToActOn.ten_du_an }} không? 
                 </p>
                  <p v-else class="mb-6 text-gray-700">
-                    Bạn có chắc chắn muốn **HOÀN THÀNH DỰ ÁN** "**{{ projectToActOn.ten_du_an }}**" không? Hệ thống sẽ kiểm tra tất cả công việc con đã được phê duyệt.
+                    Bạn có chắc chắn muốn hoàn thành dự án {{ projectToActOn.ten_du_an }} không? 
                 </p>
                 
                 <div class="flex justify-end space-x-3">
@@ -290,7 +272,7 @@ onMounted(() => {
                     <button @click="handleConfirmAction" 
                             class="font-bold py-2 px-4 rounded shadow-lg text-sm transition text-white"
                             :class="{'bg-red-600 hover:bg-red-700': currentAction === 'DELETE' || currentAction === 'HUY', 'bg-green-600 hover:bg-green-700': currentAction === 'HOAN_THANH'}">
-                        {{ currentAction === 'DELETE' ? 'Xác nhận Xóa' : 'Xác nhận' }}
+                        {{ currentAction === 'DELETE' ? 'Xóa' : 'Xác nhận' }}
                     </button>
                 </div>
             </div>

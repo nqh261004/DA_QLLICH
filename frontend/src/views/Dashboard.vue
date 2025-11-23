@@ -13,14 +13,12 @@ const tasks = ref<any[]>([]);
 const isLoading = ref(true);
 const error = ref('');
 
-// Logic phân loại Task (Giữ nguyên)
 const taskSummary = computed(() => {
     let overdueCount = 0; 
     let dueSoonCount = 0; 
     let pendingApprovalCount = 0; 
     let totalActiveCount = 0;
-    
-    // TẠO DANH SÁCH TASK CẦN HIỂN THỊ CHI TIẾT
+
     const activeTasksList: any[] = []; 
 
     const now = new Date();
@@ -42,7 +40,6 @@ const taskSummary = computed(() => {
         if (isDueSoon) dueSoonCount++;
         if (task.trang_thai === 'cho_duyet') pendingApprovalCount++;
 
-        // 🔥 LOGIC HIỂN THỊ CHI TIẾT: Lấy 5 Task Quá hạn hoặc Sắp hết hạn/Chờ duyệt
         if (isOverdue || isDueSoon || task.trang_thai === 'cho_duyet') {
              activeTasksList.push(task);
         }
@@ -66,7 +63,6 @@ const fetchTasks = async () => {
 };
 
 const viewTaskDetail = (id: string) => {
-    // Chuyển hướng đến Task Detail
     router.push({ name: 'task-detail', params: { id } });
 }
 
@@ -97,7 +93,7 @@ onMounted(fetchTasks);
                             <ExclamationTriangleIcon class="w-6 h-6 text-red-600" />
                         </div>
                         <p class="text-4xl font-extrabold text-gray-900 mt-1">{{ taskSummary.overdueCount }}</p>
-                        <p class="text-xs text-gray-500">Task cần xử lý khẩn cấp</p>
+                        <p class="text-xs text-gray-500">Công việc cần xử lý khẩn cấp</p>
                     </div>
                     
                     <div class="summary-card border-yellow-500">
@@ -106,7 +102,7 @@ onMounted(fetchTasks);
                             <ClockIcon class="w-6 h-6 text-yellow-600" />
                         </div>
                         <p class="text-4xl font-extrabold text-gray-900 mt-1">{{ taskSummary.dueSoonCount }}</p>
-                        <p class="text-xs text-gray-500">Task đến hạn trong 48 giờ tới</p>
+                        <p class="text-xs text-gray-500">Công việc đến hạn trong 48 giờ tới</p>
                     </div>
                     
                     <div class="summary-card border-blue-500">
@@ -122,11 +118,11 @@ onMounted(fetchTasks);
                 <div class="mt-8 bg-white p-6 rounded-xl shadow-lg">
                     <h3 class="text-xl font-medium border-b pb-2 mb-4 flex items-center">
                         <ClipboardDocumentListIcon class="w-5 h-5 mr-2" /> 
-                        Task Cần Xử Lý 
+                        Công Việc Cần Xử Lý 
                     </h3>
                     
                     <p v-if="taskSummary.activeTasksList.length === 0" class="text-gray-500 italic py-4">
-                        Không có Task nào cần hành động ngay lập tức.
+                        Không có Công việc nào cần hành động ngay lập tức.
                     </p>
 
                     <table v-else class="min-w-full divide-y divide-gray-200">
@@ -150,7 +146,7 @@ onMounted(fetchTasks);
                         </tbody>
                     </table>
                 </div>
-                </div>
+            </div>
         </div>
     </MainLayout>
 </template>
