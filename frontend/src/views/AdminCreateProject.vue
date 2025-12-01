@@ -4,7 +4,14 @@ import { ref } from 'vue';
 import apiClient from '@/api/client';
 import { useToast } from "vue-toastification";
 import { useRouter } from 'vue-router';
-import { ArchiveBoxIcon, CalendarIcon } from '@heroicons/vue/24/outline'; 
+import { 
+    ArchiveBoxIcon, 
+    CalendarIcon, 
+    ArrowLeftIcon, 
+    PencilSquareIcon, 
+    Bars3BottomLeftIcon,
+    CheckCircleIcon
+} from '@heroicons/vue/24/outline'; 
 
 const toast = useToast();
 const router = useRouter();
@@ -28,7 +35,7 @@ const handleSubmit = async () => {
     isSubmitting.value = true;
 
     if (!form.value.ten_du_an || !form.value.ngay_bat_dau || !form.value.ngay_ket_thuc_du_kien) {
-        error.value = 'Vui lòng điền đầy đủ các trường bắt buộc.';
+        error.value = 'Vui lòng điền đầy đủ các trường bắt buộc (*).';
         toast.error(error.value);
         isSubmitting.value = false;
         return;
@@ -48,8 +55,16 @@ const handleSubmit = async () => {
         router.push({ name: 'admin-projects' }); 
 
     } catch (err: any) {
-        error.value = err.response?.data?.message || 'Tạo dự án thất bại.';
-        toast.error(error.value);
+        const responseMessage = err.response?.data?.message;
+        let finalMessage = 'Tạo dự án thất bại.';
+
+        if (Array.isArray(responseMessage) && responseMessage.length > 0) {
+             finalMessage = responseMessage[0]; 
+        } else if (typeof responseMessage === 'string') {
+             finalMessage = responseMessage;
+        }
+
+        toast.error(finalMessage);
     } finally {
         isSubmitting.value = false;
     }
@@ -58,55 +73,93 @@ const handleSubmit = async () => {
 
 <template>
     <MainLayout>
-        <div class="space-y-8 max-w-4xl mx-auto">
-            <h1 class="text-3xl font-bold text-gray-800 border-b pb-3 mb-4 flex items-center">
-                <ArchiveBoxIcon class="w-8 h-8 mr-2 text-indigo-600" /> Tạo Dự Án Mới
-            </h1>
-            
-            <p v-if="error" class="alert-error">{{ error }}</p>
+        <div class="max-w-4xl mx-auto space-y-6">
+            <button @click="router.back()" class="text-blue-600 hover:text-blue-800 flex items-center mb-4 transition">
+                <ArrowLeftIcon class="w-5 h-5 mr-2" />
+                Quay lại
+            </button>
 
-            <div class="bg-white p-8 rounded-xl shadow-xl">
-                <form @submit.prevent="handleSubmit" :class="{'opacity-50': isSubmitting}">
+            <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+                <div class="bg-gradient-to-r from-indigo-600 to-blue-500 p-8 text-white">
+                    <div class="flex items-center">
+                        <div class="bg-white/20 p-3 rounded-full mr-4 backdrop-blur-sm">
+                            <ArchiveBoxIcon class="w-8 h-8 text-white"/>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold">Khởi Tạo Dự Án Mới</h1>
+                            <p class="text-indigo-100 text-sm mt-1">Thiết lập thông tin và thời gian cho dự án.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="error" class="mx-8 mt-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
+                    {{ error }}
+                </div>
+
+                <form @submit.prevent="handleSubmit" class="p-8 space-y-6">
                     
-                    <div class="mb-4">
-                        <label class="label">Tên dự án</label>
-                        <input type="text" v-model="form.ten_du_an" required
-                               placeholder="Nhập tên dự án" 
-                               class="form-input">
+                    <div>
+                        <label class="label">Tên dự án <span class="text-red-500">*</span></label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <PencilSquareIcon class="h-5 w-5 text-gray-400" />
+                            </div>
+                            <input type="text" v-model="form.ten_du_an" required
+                                placeholder="Ví dụ: Xây dựng hệ thống CRM" 
+                                class="form-input pl-10" />
+                        </div>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="label">Ngày bắt đầu <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <CalendarIcon class="h-5 w-5 text-gray-400" />
+                                </div>
+                                <input type="date" v-model="form.ngay_bat_dau" required
+                                    :min="getTodayDate()"
+                                    class="form-input pl-10" />
+                            </div>
+                        </div>
+                        <div>
+                            <label class="label">Ngày kết thúc dự kiến <span class="text-red-500">*</span></label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <CalendarIcon class="h-5 w-5 text-gray-400" />
+                                </div>
+                                <input type="date" v-model="form.ngay_ket_thuc_du_kien" required
+                                    :min="form.ngay_bat_dau || getTodayDate()"
+                                    class="form-input pl-10" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
                         <label class="label">Mô tả dự án</label>
-                        <textarea v-model="form.mo_ta" rows="4" 
-                                  placeholder="Nhập mô tả dự án" 
-                                  class="form-input"></textarea>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div>
-                            <label class="label flex items-center">
-                                <CalendarIcon class="w-4 h-4 mr-1"/> Ngày bắt đầu
-                            </label>
-                            <input type="date" v-model="form.ngay_bat_dau" required
-                                   :min="getTodayDate()"
-                                   class="form-input">
-                        </div>
-                        <div>
-                            <label class="label flex items-center">
-                                <CalendarIcon class="w-4 h-4 mr-1"/> Ngày kết thúc
-                            </label>
-                            <input type="date" v-model="form.ngay_ket_thuc_du_kien" required
-                                   :min="form.ngay_bat_dau || getTodayDate()"
-                                   class="form-input">
+                        <div class="relative">
+                            <div class="absolute top-3 left-3 pointer-events-none">
+                                <Bars3BottomLeftIcon class="h-5 w-5 text-gray-400" />
+                            </div>
+                            <textarea v-model="form.mo_ta" rows="4" 
+                                placeholder="Mô tả mục tiêu, phạm vi dự án..." 
+                                class="form-input pl-10 pt-3 resize-none"></textarea>
                         </div>
                     </div>
 
-                    <div class="flex justify-end space-x-3 pt-4 border-t">
-                        <router-link :to="{name: 'admin-projects'}" class="btn-secondary">Hủy</router-link>
-                        <button type="submit" 
-                                :disabled="isSubmitting"
-                                class="btn-primary bg-indigo-600 hover:bg-indigo-700">
-                            {{ isSubmitting ? 'Đang tạo...' : 'Tạo Dự án' }}
+                    <div class="flex justify-end items-center pt-6 border-t border-gray-100 space-x-4">
+                        <button type="button" @click="router.back()" class="btn-secondary">
+                            Hủy bỏ
+                        </button>
+                        <button type="submit" :disabled="isSubmitting" 
+                            class="btn-primary flex items-center">
+                            <span v-if="!isSubmitting" class="flex items-center">
+                                <CheckCircleIcon class="w-5 h-5 mr-2" /> Tạo Dự Án
+                            </span>
+                            <span v-else class="flex items-center">
+                                <svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Đang xử lý...
+                            </span>
                         </button>
                     </div>
                 </form>
@@ -117,18 +170,15 @@ const handleSubmit = async () => {
 
 <style scoped>
 .form-input {
-    @apply mt-1 block w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150;
+    @apply mt-1 block w-full py-2.5 pr-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 sm:text-sm;
 }
 .label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
+    @apply block text-sm font-semibold text-gray-700 mb-1;
 }
 .btn-primary {
-    @apply font-bold py-2 px-4 rounded shadow-lg text-sm text-white;
+    @apply bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-md text-sm transition duration-150 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
 }
 .btn-secondary {
-    @apply bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded text-sm;
-}
-.alert-error {
-    @apply text-red-500 p-3 bg-red-100 rounded-lg border border-red-300 font-medium;
+    @apply bg-white border border-gray-300 text-gray-700 font-bold py-2.5 px-6 rounded-lg text-sm hover:bg-gray-50 transition duration-150;
 }
 </style>

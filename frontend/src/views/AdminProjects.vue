@@ -1,11 +1,28 @@
 <script setup lang="ts">
 import MainLayout from '@/components/MainLayout.vue';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { getProjects, updateProject, deleteProject } from '@/api/projectService';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 import { useToast } from "vue-toastification"; 
-import { ArchiveBoxIcon, CheckCircleIcon, PlayIcon, TrashIcon, XMarkIcon, ClockIcon, PencilSquareIcon, EyeIcon } from '@heroicons/vue/24/outline'; 
+import { 
+    ArchiveBoxIcon, 
+    CheckCircleIcon, 
+    PlayIcon, 
+    TrashIcon, 
+    XMarkIcon, 
+    ClockIcon, 
+    PencilSquareIcon, 
+    EyeIcon,
+    CalendarIcon,      
+    ListBulletIcon    
+} from '@heroicons/vue/24/outline'; 
+
+import FullCalendar from '@fullcalendar/vue3';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import listPlugin from '@fullcalendar/list';
 
 const authStore = useAuthStore();
 const toast = useToast();
@@ -17,6 +34,8 @@ const error = ref('');
 
 const currentPage = ref(1);
 const itemsPerPage = 5;
+
+const currentView = ref<'list' | 'calendar'>('list');
 
 const FINAL_PROJECT_STATUSES = ['hoan_thanh', 'huy'];
 
@@ -39,7 +58,57 @@ interface Project {
     ten_du_an: string;
     trang_thai: 'sap_bat_dau' | 'dang_tien_hanh' | 'hoan_thanh' | 'huy';
     ngay_tao: string;
+    ngay_bat_dau?: string; 
+    ngay_ket_thuc_du_kien?: string; 
+    nguoi_quan_ly?: any; 
 }
+
+const getStatusColor = (statusKey: string) => {
+    const map: {[key: string]: string} = {
+        'sap_bat_dau': '#6366f1', 
+        'dang_tien_hanh': '#3b82f6', 
+        'hoan_thanh': '#22c55e',
+        'huy': '#ef4444' 
+    };
+    return map[statusKey] || '#6b7280';
+};
+
+const calendarOptions = ref({
+    plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin],
+    initialView: 'dayGridMonth',
+    headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'dayGridMonth,listWeek'
+    },
+    events: [] as any[],
+    eventClick: (info: any) => {
+        handleViewDetail(info.event.id); 
+    },
+    locale: 'vi',
+    allDayText: '',
+    buttonText: { today: 'Hôm nay', month: 'Tháng', week: 'Tuần', day: 'Ngày', list: 'Lịch trình' },
+    height: 'auto',
+    dayMaxEvents: true
+});
+
+const updateCalendarEvents = () => {
+    if (!Array.isArray(projects.value)) return;
+    
+    calendarOptions.value.events = projects.value.map((p: Project) => ({
+        id: p.id,
+        title: p.ten_du_an,
+        start: p.ngay_bat_dau,
+        end: p.ngay_ket_thuc_du_kien,
+        allDay: true,
+        backgroundColor: getStatusColor(p.trang_thai),
+        borderColor: getStatusColor(p.trang_thai),
+        textColor: '#ffffff',
+        extendedProps: {
+            manager: p.nguoi_quan_ly?.ho_ten
+        }
+    }));
+};
 
 const fetchProjects = async () => {
     try {
@@ -49,16 +118,29 @@ const fetchProjects = async () => {
             params.trang_thai = currentFilter.value.toUpperCase(); 
         }
 
-        params.page = currentPage.value;
-    params.limit = itemsPerPage;
+        if (currentView.value === 'calendar') {
+            params.limit = 1000;
+            params.page = 1;
+        } else {
+            params.page = currentPage.value;
+            params.limit = itemsPerPage;
+        }
 
         const data = await getProjects(params);
-        if (data.length === 0 && currentPage.value > 1) {
+        
+        const safeData = Array.isArray(data) ? data : (data.data || []); 
+        
+        if (currentView.value === 'list' && safeData.length === 0 && currentPage.value > 1) {
             currentPage.value -= 1;
             await fetchProjects(); 
             return; 
         }
-        projects.value = data;
+        projects.value = safeData;
+
+        if (currentView.value === 'calendar') {
+            updateCalendarEvents();
+        }
+
     } catch (err: any) {
         if (!authStore.isManager) {
             error.value = 'Truy cập bị từ chối. Chỉ Quản lý mới có quyền quản lý dự án.';
@@ -76,6 +158,11 @@ const handlePageChange = (newPage: number) => {
     fetchProjects();
 }
 
+watch(currentView, () => {
+    currentPage.value = 1; 
+    fetchProjects();
+});
+
 const getStatusDisplay = (statusKey: string) => {
     const statuses: { [key: string]: any } = {
         sap_bat_dau: { label: 'Sắp bắt đầu', bg: 'bg-indigo-100', text: 'text-indigo-800', icon: PlayIcon },
@@ -88,6 +175,7 @@ const getStatusDisplay = (statusKey: string) => {
 
 const handleFilterChange = (key: string) => {
     currentFilter.value = key;
+    currentPage.value = 1; 
     fetchProjects(); 
 }
 
@@ -153,7 +241,22 @@ onMounted(() => {
 <template>
     <MainLayout>
         <div class="space-y-8">
-            <h1 class="text-3xl font-bold text-gray-800">Quản lý Dự án</h1>
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <h1 class="text-3xl font-bold text-gray-800">Quản lý Dự án</h1>
+                
+                <div class="bg-white p-1 rounded-lg shadow border flex">
+                    <button @click="currentView = 'list'"
+                        class="px-4 py-2 rounded-md flex items-center text-sm font-medium transition-colors"
+                        :class="currentView === 'list' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'">
+                        <ListBulletIcon class="w-5 h-5 mr-2"/> Danh sách
+                    </button>
+                    <button @click="currentView = 'calendar'"
+                        class="px-4 py-2 rounded-md flex items-center text-sm font-medium transition-colors"
+                        :class="currentView === 'calendar' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'">
+                        <CalendarIcon class="w-5 h-5 mr-2"/> Lịch biểu
+                    </button>
+                </div>
+            </div>
             
             <p v-if="error" class="alert-error">{{ error }}</p>
 
@@ -164,80 +267,107 @@ onMounted(() => {
             </div>
             
             <div v-else>
-                <div class="p-4 bg-white rounded-lg shadow-md flex space-x-3 overflow-x-auto mb-6">
-                    <button v-for="status in projectStatuses" :key="status.key"
-                        @click="handleFilterChange(status.key)"
-                        class="filter-button"
-                        :class="{'bg-indigo-600 text-white shadow-lg': currentFilter === status.key, 'bg-gray-200 text-gray-700 hover:bg-gray-300': currentFilter !== status.key}">                 
-                        <component :is="status.icon" class="w-5 h-5 mr-1" />
-                        {{ status.label }}
-                    </button>
-                </div>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div class="p-4 bg-white rounded-lg shadow-md flex space-x-3 overflow-x-auto max-w-full">
+                        <button v-for="status in projectStatuses" :key="status.key"
+                            @click="handleFilterChange(status.key)"
+                            class="filter-button"
+                            :class="{'bg-indigo-600 text-white shadow-lg': currentFilter === status.key, 'bg-gray-200 text-gray-700 hover:bg-gray-300': currentFilter !== status.key}">                 
+                            <component :is="status.icon" class="w-5 h-5 mr-1" />
+                            {{ status.label }}
+                        </button>
+                    </div>
 
-                <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-medium">Danh sách Dự án Phòng Ban</h3>
-                <router-link :to="{ name: 'admin-create-project' }" 
-                        class="btn-primary bg-indigo-600 hover:bg-indigo-700">
-                    + Tạo Dự án Mới
-                </router-link>
+                    <router-link :to="{ name: 'admin-create-project' }" 
+                            class="btn-primary bg-indigo-600 hover:bg-indigo-700 shrink-0">
+                        + Tạo Dự án Mới
+                    </router-link>
                 </div>
                 
-                <div class="bg-white p-6 rounded-lg shadow-xl">
+                <div class="bg-white p-6 rounded-lg shadow-xl min-h-[500px]">
                     <p v-if="isLoading">Đang tải danh sách dự án...</p>
 
-                    <p v-else-if="projects.length === 0" class="text-center py-8 text-lg text-gray-500">Không có dự án nào theo bộ lọc hiện tại.</p>
-                    
-                    <table v-else class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên Dự án</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày tạo</th>
-                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <tr v-for="project in projects" :key="project.id">
-                                <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{{ project.ten_du_an }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span :class="[getStatusDisplay(project.trang_thai).bg, getStatusDisplay(project.trang_thai).text, 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full']">
-                                        {{ getStatusDisplay(project.trang_thai).label }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-gray-500">{{ new Date(project.ngay_tao).toLocaleDateString('vi-VN') }}</td>
-                                
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
+                    <div v-else-if="currentView === 'calendar'" class="calendar-wrapper">
+                        <FullCalendar :options="calendarOptions" />
+                    </div>
 
-                                    <button @click="handleViewDetail(project.id)"
-                                        class="action-icon-btn text-blue-600 hover:text-blue-800" title="Xem chi tiết dự án">
-                                        <EyeIcon class="w-5 h-5 inline" />
-                                    </button>
+                    <div v-else>
+                        <p v-if="projects.length === 0" class="text-center py-8 text-lg text-gray-500">Không có dự án nào theo bộ lọc hiện tại.</p>
+                        
+                        <div v-else>
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên Dự án</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày tạo</th>
+                                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr v-for="project in projects" :key="project.id">
+                                        <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{{ project.ten_du_an }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span :class="[getStatusDisplay(project.trang_thai).bg, getStatusDisplay(project.trang_thai).text, 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full']">
+                                                {{ getStatusDisplay(project.trang_thai).label }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-gray-500">{{ new Date(project.ngay_tao).toLocaleDateString('vi-VN') }}</td>
+                                        
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
 
-                                    <button @click="handleEditProjectDetail(project)"
-                                        class="action-icon-btn text-blue-600 hover:text-blue-800" title="Sửa thông tin">
-                                    <PencilSquareIcon class="w-5 h-5 inline" />
-                                    </button>
-                                    
-                                    <button v-if="project.trang_thai !== 'hoan_thanh' && project.trang_thai !== 'huy'"
-                                        @click="handleOpenModal(project, 'HOAN_THANH')"
-                                        class="action-icon-btn text-green-600 hover:text-green-900" title="Hoàn thành dự án">
-                                        <CheckCircleIcon class="w-5 h-5 inline" />
-                                    </button>
-                                    
-                                    <button v-if="project.trang_thai !== 'hoan_thanh' && project.trang_thai !== 'huy'"
-                                        @click="handleOpenModal(project, 'HUY')"
-                                        class="action-icon-btn text-yellow-600 hover:text-yellow-800" title="Hủy dự án">
-                                        <ArchiveBoxIcon class="w-5 h-5 inline" />
-                                    </button>
+                                            <button @click="handleViewDetail(project.id)"
+                                                class="action-icon-btn text-blue-600 hover:text-blue-800" title="Xem chi tiết dự án">
+                                                <EyeIcon class="w-5 h-5 inline" />
+                                            </button>
 
-                                    <button @click="handleOpenModal(project, 'DELETE')"
-                                        class="action-icon-btn text-red-600 hover:text-red-900" title="Xóa dự án">
-                                        <TrashIcon class="w-5 h-5 inline" />
+                                            <button @click="handleEditProjectDetail(project)"
+                                                class="action-icon-btn text-blue-600 hover:text-blue-800" title="Sửa thông tin">
+                                            <PencilSquareIcon class="w-5 h-5 inline" />
+                                            </button>
+                                            
+                                            <button v-if="project.trang_thai !== 'hoan_thanh' && project.trang_thai !== 'huy'"
+                                                @click="handleOpenModal(project, 'HOAN_THANH')"
+                                                class="action-icon-btn text-green-600 hover:text-green-900" title="Hoàn thành dự án">
+                                                <CheckCircleIcon class="w-5 h-5 inline" />
+                                            </button>
+                                            
+                                            <button v-if="project.trang_thai !== 'hoan_thanh' && project.trang_thai !== 'huy'"
+                                                @click="handleOpenModal(project, 'HUY')"
+                                                class="action-icon-btn text-yellow-600 hover:text-yellow-800" title="Hủy dự án">
+                                                <ArchiveBoxIcon class="w-5 h-5 inline" />
+                                            </button>
+
+                                            <button @click="handleOpenModal(project, 'DELETE')"
+                                                class="action-icon-btn text-red-600 hover:text-red-900" title="Xóa dự án">
+                                                <TrashIcon class="w-5 h-5 inline" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <div class="flex justify-between items-center mt-6 p-4 border-t border-gray-100">
+                                <p class="text-sm text-gray-600">
+                                    Hiển thị {{ projects.length }} dự án (Trang {{ currentPage }})
+                                </p>
+                                <div class="flex space-x-3">
+                                    <button 
+                                        @click="handlePageChange(currentPage - 1)" 
+                                        :disabled="currentPage === 1"
+                                        class="btn-secondary">
+                                        ← Trang trước
                                     </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                    <button 
+                                        @click="handlePageChange(currentPage + 1)" 
+                                        :disabled="projects.length < itemsPerPage"
+                                        class="btn-secondary">
+                                        Trang sau →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -277,25 +407,6 @@ onMounted(() => {
                 </div>
             </div>
         </div>
-        <div class="flex justify-between items-center mt-6 p-4 bg-white rounded-lg shadow">
-                <p class="text-sm text-gray-600">
-                    Hiển thị {{ projects.length }} dự án (Trang {{ currentPage }})
-                </p>
-                <div class="flex space-x-3">
-                    <button 
-                        @click="handlePageChange(currentPage - 1)" 
-                        :disabled="currentPage === 1"
-                        class="btn-secondary">
-                        ← Trang trước
-                    </button>
-                    <button 
-                        @click="handlePageChange(currentPage + 1)" 
-                        :disabled="projects.length < itemsPerPage"
-                        class="btn-secondary">
-                        Trang sau →
-                    </button>
-                </div>
-            </div>
     </MainLayout>
 </template>
 
@@ -310,7 +421,7 @@ onMounted(() => {
     @apply bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded shadow-lg text-sm;
 }
 .btn-secondary {
-    @apply bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded text-sm;
+    @apply bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed;
 }
 .alert-error {
     @apply text-red-500 p-3 bg-red-100 rounded-lg border border-red-300 font-medium;
@@ -330,5 +441,29 @@ onMounted(() => {
     justify-content: center;
     align-items: center;
     z-index: 1000;
+}
+
+.calendar-wrapper :deep(.fc-toolbar-title) {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+.calendar-wrapper :deep(.fc-button-primary) {
+    background-color: #4f46e5;
+    border-color: #4f46e5;
+}
+.calendar-wrapper :deep(.fc-button-primary:hover) {
+    background-color: #4338ca;
+    border-color: #4338ca;
+}
+.calendar-wrapper :deep(.fc-event) {
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    padding: 2px 4px;
+    font-size: 0.85rem;
+}
+.calendar-wrapper :deep(.fc-day-today) {
+    background-color: #e0e7ff !important;
 }
 </style>

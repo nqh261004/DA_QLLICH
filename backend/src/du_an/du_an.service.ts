@@ -177,7 +177,7 @@ async capNhatDuAn(idNguoiDung: string, idDuAn: string, capNhatDuAnDto: CapNhatDu
             cv => cv.trang_thai !== TrangThaiCongViec.PHE_DUYET
         );
 
-        if (congViecChuaHoanThanh.length > 0) {
+        if (congViecChuaHoanThanh.length > 0) { 
             throw new ForbiddenException(
                 `Không thể chuyển trạng thái thành HOÀN THÀNH. Còn ${congViecChuaHoanThanh.length} công việc chưa được PHÊ DUYỆT.`
             );

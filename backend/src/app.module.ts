@@ -14,6 +14,9 @@ import { NguoiDungModule } from './nguoi_dung/nguoi_dung.module';
 import { MailerModule } from './mailer/mailer.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { BullModule } from '@nestjs/bull';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+import { FileDinhKem } from './entities/file_dinh_kem.entity';
 
 @Module({
   imports: [
@@ -30,7 +33,7 @@ import { BullModule } from '@nestjs/bull';
         username: configService.get<string>('DB_USERNAME', 'postgres'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_DATABASE'),
-        entities: [NguoiDung, PhongBan, DuAn, CongViec],
+        entities: [NguoiDung, PhongBan, DuAn, CongViec, FileDinhKem],
         synchronize: true,
       }),
     }),
@@ -42,6 +45,11 @@ import { BullModule } from '@nestjs/bull';
             enableReadyCheck: false,
         },
     }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads', 
+    }),
+    
     AuthModule,
     DuAnModule,
     CongViecModule,

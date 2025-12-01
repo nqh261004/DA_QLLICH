@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
 import { DuAn } from './du_an.entity'; 
 import { NguoiDung } from './nguoi_dung.entity'; 
+import { FileDinhKem } from './file_dinh_kem.entity';
 
 export enum TrangThaiCongViec {
   CAN_LAM = 'can_lam', 
@@ -56,6 +57,9 @@ export class CongViec {
 
   @Column({ name: 'nguoiThucHienId', type: 'uuid', nullable: true })
   nguoiThucHienId: string;
+
+  @OneToMany(() => FileDinhKem, (file) => file.cong_viec)
+  files: FileDinhKem[];
 
   // --- QUAN HỆ NGƯỜI GIAO VIỆC ---
   @ManyToOne(() => NguoiDung, { onDelete: 'SET NULL' })

@@ -11,6 +11,7 @@ import { DuAn } from 'src/entities/du_an.entity';
 import { CongViecService } from 'src/cong_viec/cong_viec.service';
 import { DuAnModule } from 'src/du_an/du_an.module';
 import { NguoiDungModule } from 'src/nguoi_dung/nguoi_dung.module';
+import { FileDinhKem } from 'src/entities/file_dinh_kem.entity';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { NguoiDungModule } from 'src/nguoi_dung/nguoi_dung.module';
       name: 'task_reminder',
     }),
     MailerModule,
-    TypeOrmModule.forFeature([CongViec, NguoiDung, DuAn]),
+    TypeOrmModule.forFeature([CongViec, NguoiDung, DuAn, FileDinhKem]),
     DuAnModule,
     NguoiDungModule,
   ],

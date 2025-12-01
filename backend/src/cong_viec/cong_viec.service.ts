@@ -6,6 +6,7 @@ import { CapNhatCongViecDto } from './dto/cap_nhat_cong_viec.dto';
 import { CongViec, TrangThaiCongViec } from 'src/entities/cong_viec.entity';
 import { NguoiDung, VaiTro } from 'src/entities/nguoi_dung.entity';
 import { DuAn, TrangThaiDuAn } from 'src/entities/du_an.entity';
+import { FileDinhKem } from 'src/entities/file_dinh_kem.entity';
 import { format, startOfDay, addDays, endOfDay, isBefore, isAfter} from 'date-fns';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
@@ -19,6 +20,8 @@ export class CongViecService {
     private nguoiDungRepository: Repository<NguoiDung>,
     @InjectRepository(DuAn)
     private duAnRepository: Repository<DuAn>,
+    @InjectRepository(FileDinhKem)
+    private fileRepository: Repository<FileDinhKem>,
     @InjectQueue('task_reminder') private taskReminderQueue: Queue,
   ) {}
 
@@ -192,7 +195,7 @@ async findAll(
   async findOne(idNguoiDung: string, idCongViec: string): Promise<CongViec> {
     const congViec = await this.congViecRepository.findOne({
       where: { id: idCongViec },
-      relations: ['du_an', 'nguoi_thuc_hien', 'nguoi_giao_viec'],
+      relations: ['du_an', 'nguoi_thuc_hien', 'nguoi_giao_viec', 'files'],
     });
 
     if (!congViec) { throw new NotFoundException('Công việc không tồn tại.'); }
@@ -209,6 +212,31 @@ async findAll(
     
     throw new ForbiddenException('Không có quyền xem công việc này.');
   }
+
+  async nopBai(idNguoiDung: string, idCongViec: string, files: Array<Express.Multer.File>) {
+    const congViec = await this.congViecRepository.findOne({ where: { id: idCongViec } });
+    
+    if (!congViec) throw new NotFoundException('Công việc không tồn tại');
+
+    congViec.trang_thai = TrangThaiCongViec.CHO_DUYET;
+    await this.congViecRepository.save(congViec);
+
+    if (files && files.length > 0) {
+        const fileEntities = files.map(file => {
+            return this.fileRepository.create({
+                ten_file_goc: file.originalname,
+                ten_file_luu: file.filename,
+                duong_dan: file.path,
+                kich_thuoc: file.size,
+                mimetype: file.mimetype,
+                cong_viec: congViec
+            });
+        });
+        await this.fileRepository.save(fileEntities);
+    }
+
+    return { message: 'Nộp bài thành công', congViec };
+}
 
   private kiemTraChuyenTrangThaiHopLe(
     nguoiDung: NguoiDung,

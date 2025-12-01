@@ -4,6 +4,10 @@ import { TaoCongViecDto } from './dto/tao_cong_viec.dto';
 import { CapNhatCongViecDto } from './dto/cap_nhat_cong_viec.dto';
 import { CapNhatTrangThaiDto } from './dto/cap_nhat_trang_thai.dto';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt.guard';
+import { UseInterceptors, UploadedFiles } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 
 @UseGuards(JwtAuthGuard)
 @Controller('cong-viec')
@@ -60,5 +64,26 @@ export class CongViecController {
   remove(@Req() req: any, @Param('id') id: string) {
     const idNguoiDung = req.user.id;
     return this.congViecService.remove(idNguoiDung, id);
+  }
+
+  @Post(':id/nop-bai')
+  @UseInterceptors(FilesInterceptor('files', 5, {
+    storage: diskStorage({
+      destination: './uploads',
+      filename: (req, file, cb) => {
+        const randomName = Array(32).fill(null).map(() => (Math.round(Math.random() * 16)).toString(16)).join('');
+        cb(null, `${randomName}${extname(file.originalname)}`);
+      },
+    }),
+    limits: {
+      fileSize: 5 * 1024 * 1024,
+    },
+  }))
+  async nopBai(
+    @Req() req: any,
+    @Param('id') id: string,
+    @UploadedFiles() files: Array<Express.Multer.File>
+  ) {
+    return this.congViecService.nopBai(req.user.id, id, files);
   }
 }

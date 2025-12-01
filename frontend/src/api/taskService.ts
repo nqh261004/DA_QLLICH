@@ -46,3 +46,16 @@ export const deleteTask = async (id: string) => {
         throw error;
     }
 };
+
+export const submitTaskWork = async (id: string, formData: FormData) => {
+    try {
+        const response = await apiClient.post(`/cong-viec/${id}/nop-bai`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+};
