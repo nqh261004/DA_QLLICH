@@ -43,6 +43,32 @@ const isConfirmDeleteModalOpen = ref(false);
 const taskToDeleteId = ref('');
 const taskToDeleteTitle = ref('');
 
+const openDeleteModal = (taskId: string, taskTitle: string) => {
+    console.log('Before - taskToDeleteTitle:', taskToDeleteTitle.value);
+    taskToDeleteId.value = taskId;
+    taskToDeleteTitle.value = taskTitle;
+    isConfirmDeleteModalOpen.value = true;
+    console.log('After - taskToDeleteTitle:', taskToDeleteTitle.value);
+    console.log('After - isConfirmDeleteModalOpen:', isConfirmDeleteModalOpen.value);
+};
+
+const handleDeleteTask = async () => {
+    const id = taskToDeleteId.value;
+    const title = taskToDeleteTitle.value;
+    
+    isConfirmDeleteModalOpen.value = false; 
+
+    try {
+        await deleteTask(id);
+        toast.success(`Công việc "${title}" đã được xóa thành công.`);
+        
+        await fetchTasks();
+    } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi xóa công việc.');
+        error.value = error.response?.data?.message || 'Có lỗi xảy ra khi xóa công việc.';
+    }
+}
+
 const calendarOptions = ref({
     plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin],
     initialView: 'dayGridMonth',
@@ -159,6 +185,10 @@ const fetchTasks = async () => {
     }
 };
 
+const taskToActOn = ref<any | null>(null);
+
+
+
 const handlePageChange = (newPage: number) => {
     currentPage.value = newPage;
     fetchTasks();
@@ -180,29 +210,29 @@ const viewTaskDetail = (id: string) => {
 const handleEditDetail = (task: any) => {
     const FINAL_TASK_STATUSES = ['phe_duyet', 'bi_huy'];
     if (FINAL_TASK_STATUSES.includes(task.trang_thai)) {
-        toast.error(`Không thể chỉnh sửa công việc đã phê duyệt.`);
+        toast.error(`Không thể chỉnh sửa công việc đã ${getStatusDisplay(task.trang_thai).label}.`);
         return; 
     }
     router.push({ name: 'admin-edit-task', params: { id: task.id } });
 };
 
-const openDeleteModal = (taskId: string, taskTitle: string) => {
-    taskToDeleteId.value = taskId;
-    taskToDeleteTitle.value = taskTitle;
-    isConfirmDeleteModalOpen.value = true;
-};
+// const openDeleteModal = (taskId: string, taskTitle: string) => {
+//     taskToDeleteId.value = taskId;
+//     taskToDeleteTitle.value = taskTitle;
+//     isConfirmDeleteModalOpen.value = true;
+// };
 
-const handleDeleteTask = async () => {
-    const id = taskToDeleteId.value;
-    isConfirmDeleteModalOpen.value = false; 
-    try {
-        await deleteTask(id);
-        toast.success(`Đã xóa công việc thành công.`);
-        await fetchTasks();
-    } catch (error: any) {
-        toast.error('Có lỗi xảy ra khi xóa công việc.');
-    }
-}
+// const handleDeleteTask = async () => {
+//     const id = taskToDeleteId.value;
+//     isConfirmDeleteModalOpen.value = false; 
+//     try {
+//         await deleteTask(id);
+//         toast.success(`Đã xóa công việc thành công.`);
+//         await fetchTasks();
+//     } catch (error: any) {
+//         toast.error('Có lỗi xảy ra khi xóa công việc.');
+//     }
+// }
 
 const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
@@ -349,25 +379,30 @@ onMounted(fetchTasks);
                 </div>
             </div>
         </div>
-
-        <div v-if="isConfirmDeleteModalOpen && taskToDeleteTitle" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    </MainLayout>
+    <div v-if="isConfirmDeleteModalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
                 <div class="flex justify-between items-center border-b pb-3 mb-4">
-                    <h3 class="text-xl font-bold text-red-600">Xác nhận</h3>
+                    <h3 class="text-xl font-bold text-red-600">Xác nhận Xóa Công việc</h3>
                     <button @click="isConfirmDeleteModalOpen = false" class="text-gray-500 hover:text-gray-700">
                         <XMarkIcon class="w-6 h-6" />
                     </button>
                 </div>
+                
                 <p class="text-gray-700 mb-6">
-                    Bạn có chắc chắn muốn xóa công việc <strong>{{ taskToDeleteTitle }}</strong> không? 
+                    Bạn có chắc chắn muốn xóa công việc {{ taskToDeleteTitle }} không? 
                 </p>
+                
                 <div class="flex justify-end space-x-3">
-                    <button @click="isConfirmDeleteModalOpen = false" class="btn-secondary">Hủy bỏ</button>
-                    <button @click="handleDeleteTask" class="btn-primary bg-red-600 hover:bg-red-700">Xoá</button>
+                    <button @click="isConfirmDeleteModalOpen = false" class="btn-secondary">
+                        Hủy bỏ
+                    </button>
+                    <button @click="handleDeleteTask" class="btn-primary bg-red-600 hover:bg-red-700">
+                        Xác nhận Xóa
+                    </button>
                 </div>
             </div>
         </div>
-    </MainLayout>
 </template>
 
 <style scoped>

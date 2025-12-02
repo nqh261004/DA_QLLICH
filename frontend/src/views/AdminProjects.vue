@@ -2,9 +2,9 @@
 import MainLayout from '@/components/MainLayout.vue';
 import { ref, onMounted, watch } from 'vue';
 import { getProjects, updateProject, deleteProject } from '@/api/projectService';
-import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 import { useToast } from "vue-toastification"; 
+import { useAuthStore } from '@/stores/auth';
 import { 
     ArchiveBoxIcon, 
     CheckCircleIcon, 
@@ -14,8 +14,11 @@ import {
     ClockIcon, 
     PencilSquareIcon, 
     EyeIcon,
-    CalendarIcon,      
-    ListBulletIcon    
+    CalendarIcon, 
+    ListBulletIcon,
+    FolderIcon,
+    PauseCircleIcon,
+    NoSymbolIcon
 } from '@heroicons/vue/24/outline'; 
 
 import FullCalendar from '@fullcalendar/vue3';
@@ -46,11 +49,11 @@ const currentAction = ref<'HOAN_THANH' | 'HUY' | 'DELETE' | null>(null);
 
 const currentFilter = ref('tat_ca'); 
 const projectStatuses = [
-    { key: 'tat_ca', label: 'Tất cả'},
-    { key: 'sap_bat_dau', label: 'Sắp bắt đầu', icon: ClockIcon },
-    { key: 'dang_tien_hanh', label: 'Đang tiến hành', icon: PlayIcon },
-    { key: 'hoan_thanh', label: 'Hoàn thành', icon: CheckCircleIcon },
-    { key: 'huy', label: 'Đã hủy', icon: ArchiveBoxIcon },
+    { key: 'tat_ca', label: 'Tất cả', icon: null },
+    { key: 'sap_bat_dau', label: 'Sắp bắt đầu', icon: ClockIcon, bg: '#6366f1' },
+    { key: 'dang_tien_hanh', label: 'Đang tiến hành', icon: PlayIcon, bg: '#3b82f6' },
+    { key: 'hoan_thanh', label: 'Hoàn thành', icon: CheckCircleIcon, bg: '#22c55e' },
+    { key: 'huy', label: 'Đã hủy', icon: ArchiveBoxIcon, bg: '#ef4444' },
 ];
 
 interface Project {
@@ -64,13 +67,8 @@ interface Project {
 }
 
 const getStatusColor = (statusKey: string) => {
-    const map: {[key: string]: string} = {
-        'sap_bat_dau': '#6366f1', 
-        'dang_tien_hanh': '#3b82f6', 
-        'hoan_thanh': '#22c55e',
-        'huy': '#ef4444' 
-    };
-    return map[statusKey] || '#6b7280';
+    const status = projectStatuses.find(s => s.key === statusKey);
+    return status ? status.bg : '#6b7280';
 };
 
 const calendarOptions = ref({
@@ -165,7 +163,7 @@ watch(currentView, () => {
 
 const getStatusDisplay = (statusKey: string) => {
     const statuses: { [key: string]: any } = {
-        sap_bat_dau: { label: 'Sắp bắt đầu', bg: 'bg-indigo-100', text: 'text-indigo-800', icon: PlayIcon },
+        sap_bat_dau: { label: 'Sắp bắt đầu', bg: 'bg-indigo-100', text: 'text-indigo-800', icon: ClockIcon },
         dang_tien_hanh: { label: 'Đang tiến hành', bg: 'bg-blue-100', text: 'text-blue-800', icon: PlayIcon },
         hoan_thanh: { label: 'Hoàn thành', bg: 'bg-green-100', text: 'text-green-800', icon: CheckCircleIcon },
         huy: { label: 'Đã hủy', bg: 'bg-red-100', text: 'text-red-800', icon: ArchiveBoxIcon },
@@ -231,6 +229,12 @@ const handleEditProjectDetail = (project: any) => {
     router.push({ name: 'admin-edit-project', params: { id: project.id } });
 };
 
+const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('vi-VN');
+}
+
+
 onMounted(() => {
     if (authStore.isManager) {
         fetchProjects();
@@ -285,7 +289,7 @@ onMounted(() => {
                 </div>
                 
                 <div class="bg-white p-6 rounded-lg shadow-xl min-h-[500px]">
-                    <p v-if="isLoading">Đang tải danh sách dự án...</p>
+                    <p v-if="isLoading" class="p-8 text-center text-gray-500">Đang tải danh sách dự án...</p>
 
                     <div v-else-if="currentView === 'calendar'" class="calendar-wrapper">
                         <FullCalendar :options="calendarOptions" />
@@ -309,30 +313,31 @@ onMounted(() => {
                                         <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{{ project.ten_du_an }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <span :class="[getStatusDisplay(project.trang_thai).bg, getStatusDisplay(project.trang_thai).text, 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full']">
+                                                <component :is="getStatusDisplay(project.trang_thai).icon" class="w-4 h-4 mr-1"/>
                                                 {{ getStatusDisplay(project.trang_thai).label }}
                                             </span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-gray-500">{{ new Date(project.ngay_tao).toLocaleDateString('vi-VN') }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-gray-500">{{ formatDate(project.ngay_tao) }}</td>
                                         
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
 
                                             <button @click="handleViewDetail(project.id)"
-                                                class="action-icon-btn text-blue-600 hover:text-blue-800" title="Xem chi tiết dự án">
+                                                class="action-icon-btn text-indigo-600 hover:text-indigo-900" title="Xem chi tiết dự án">
                                                 <EyeIcon class="w-5 h-5 inline" />
                                             </button>
-
+                                            
                                             <button @click="handleEditProjectDetail(project)"
                                                 class="action-icon-btn text-blue-600 hover:text-blue-800" title="Sửa thông tin">
-                                            <PencilSquareIcon class="w-5 h-5 inline" />
+                                                <PencilSquareIcon class="w-5 h-5 inline" />
                                             </button>
                                             
-                                            <button v-if="project.trang_thai !== 'hoan_thanh' && project.trang_thai !== 'huy'"
+                                            <button v-if="!FINAL_PROJECT_STATUSES.includes(project.trang_thai)"
                                                 @click="handleOpenModal(project, 'HOAN_THANH')"
                                                 class="action-icon-btn text-green-600 hover:text-green-900" title="Hoàn thành dự án">
                                                 <CheckCircleIcon class="w-5 h-5 inline" />
                                             </button>
                                             
-                                            <button v-if="project.trang_thai !== 'hoan_thanh' && project.trang_thai !== 'huy'"
+                                            <button v-if="!FINAL_PROJECT_STATUSES.includes(project.trang_thai)"
                                                 @click="handleOpenModal(project, 'HUY')"
                                                 class="action-icon-btn text-yellow-600 hover:text-yellow-800" title="Hủy dự án">
                                                 <ArchiveBoxIcon class="w-5 h-5 inline" />
@@ -352,16 +357,10 @@ onMounted(() => {
                                     Hiển thị {{ projects.length }} dự án (Trang {{ currentPage }})
                                 </p>
                                 <div class="flex space-x-3">
-                                    <button 
-                                        @click="handlePageChange(currentPage - 1)" 
-                                        :disabled="currentPage === 1"
-                                        class="btn-secondary">
+                                    <button @click="handlePageChange(currentPage - 1)" :disabled="currentPage === 1" class="btn-secondary">
                                         ← Trang trước
                                     </button>
-                                    <button 
-                                        @click="handlePageChange(currentPage + 1)" 
-                                        :disabled="projects.length < itemsPerPage"
-                                        class="btn-secondary">
+                                    <button @click="handlePageChange(currentPage + 1)" :disabled="projects.length < itemsPerPage" class="btn-secondary">
                                         Trang sau →
                                     </button>
                                 </div>
@@ -370,40 +369,40 @@ onMounted(() => {
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <ProjectForm :is-open="isCreateModalOpen" 
-                     @close="isCreateModalOpen = false"
-                     @project-created="handleProjectCreated()" />
+            
+            <ProjectForm :is-open="isCreateModalOpen" 
+                         @close="isCreateModalOpen = false"
+                         @project-created="handleProjectCreated()" />
 
-        <div v-if="isConfirmModalOpen && projectToActOn" class="modal-overlay">
-            <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
-                <div class="flex justify-between items-center border-b pb-3 mb-4">
-                    <h3 class="text-xl font-semibold text-red-600 mb-4 flex items-center">Xác nhận</h3>
-                    <button @click="isConfirmModalOpen = false" class="text-gray-500 hover:text-gray-700">
-                        <XMarkIcon class="w-6 h-6" />
-                    </button>
-                </div>
-                
-                <p v-if="currentAction === 'DELETE'" class="mb-6 text-gray-700">
-                    Bạn có chắc chắn muốn xoá dự án {{ projectToActOn.ten_du_an }} không?
-                </p>
-                 <p v-else-if="currentAction === 'HUY'" class="mb-6 text-gray-700">
-                    Bạn có chắc chắn muốn huỷ bỏ dự án {{ projectToActOn.ten_du_an }} không? 
-                </p>
-                 <p v-else class="mb-6 text-gray-700">
-                    Bạn có chắc chắn muốn hoàn thành dự án {{ projectToActOn.ten_du_an }} không? 
-                </p>
-                
-                <div class="flex justify-end space-x-3">
-                    <button @click="isConfirmModalOpen = false" class="btn-secondary">
-                        Hủy
-                    </button>
-                    <button @click="handleConfirmAction" 
-                            class="font-bold py-2 px-4 rounded shadow-lg text-sm transition text-white"
-                            :class="{'bg-red-600 hover:bg-red-700': currentAction === 'DELETE' || currentAction === 'HUY', 'bg-green-600 hover:bg-green-700': currentAction === 'HOAN_THANH'}">
-                        {{ currentAction === 'DELETE' ? 'Xóa' : 'Xác nhận' }}
-                    </button>
+            <div v-if="isConfirmModalOpen && projectToActOn" class="modal-overlay">
+                <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-md">
+                    <div class="flex justify-between items-center border-b pb-3 mb-4">
+                        <h3 class="text-xl font-semibold text-red-600 mb-4 flex items-center">Xác nhận</h3>
+                        <button @click="isConfirmModalOpen = false" class="text-gray-500 hover:text-gray-700">
+                            <XMarkIcon class="w-6 h-6" />
+                        </button>
+                    </div>
+                    
+                    <p v-if="currentAction === 'DELETE'" class="mb-6 text-gray-700">
+                        Bạn có chắc chắn muốn xoá dự án {{ projectToActOn.ten_du_an }} không?
+                    </p>
+                    <p v-else-if="currentAction === 'HUY'" class="mb-6 text-gray-700">
+                        Bạn có chắc chắn muốn huỷ bỏ dự án {{ projectToActOn.ten_du_an }} không? 
+                    </p>
+                    <p v-else class="mb-6 text-gray-700">
+                        Bạn có chắc chắn muốn hoàn thành dự án {{ projectToActOn.ten_du_an }} không? 
+                    </p>
+                    
+                    <div class="flex justify-end space-x-3">
+                        <button @click="isConfirmModalOpen = false" class="btn-secondary">
+                            Hủy
+                        </button>
+                        <button @click="handleConfirmAction" 
+                                class="font-bold py-2 px-4 rounded shadow-lg text-sm transition text-white"
+                                :class="{'bg-red-600 hover:bg-red-700': currentAction === 'DELETE' || currentAction === 'HUY', 'bg-green-600 hover:bg-green-700': currentAction === 'HOAN_THANH'}">
+                            {{ currentAction === 'DELETE' ? 'Xóa' : 'Xác nhận' }}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

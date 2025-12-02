@@ -43,6 +43,16 @@ const fetchData = async () => {
             apiClient.get('/du-an'), 
             apiClient.get('/nguoi-dung') 
         ]);
+        console.log('=== TẤT CẢ USERS ===');
+        console.table(usersRes.data);
+
+        const allNhanVien = usersRes.data.filter((u: any) => u.vai_tro === 'nhan_vien');
+        console.log('=== NHÂN VIÊN (vai_tro=nhan_vien) ===');
+        console.table(allNhanVien);
+
+        const activeNhanVien = allNhanVien.filter((u: any) => u.trang_thai_hoat_dong);
+        console.log('=== NHÂN VIÊN HOẠT ĐỘNG ===');
+        console.table(activeNhanVien);
 
         projects.value = projectsRes.data.filter((p: any) => p.trang_thai !== 'hoan_thanh' && p.trang_thai !== 'huy');
         users.value = usersRes.data.filter((u: any) => u.vai_tro === 'nhan_vien' && u.trang_thai_hoat_dong);
